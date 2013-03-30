@@ -1,0 +1,3 @@
+<div>
+    This plugin provides build status notification via <a href="http://mqtt.org/">the MQTT protocol</a>.
+</div>
