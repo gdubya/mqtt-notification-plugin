@@ -10,7 +10,7 @@
 
     <groupId>com.garethwestern.jenkins.plugins</groupId>
     <artifactId>mqtt-notification</artifactId>
-    <version>0.1-SNAPSHOT</version>
+    <version>1.0-SNAPSHOT</version>
     <packaging>hpi</packaging>
     <name>MQTT Notification</name>
 

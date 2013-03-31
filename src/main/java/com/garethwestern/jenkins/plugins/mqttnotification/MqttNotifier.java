@@ -5,27 +5,37 @@ import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.model.BuildListener;
-import hudson.model.Result;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Notifier;
 import hudson.tasks.Publisher;
 import hudson.util.FormValidation;
+import hudson.util.ListBoxModel;
 import net.sf.json.JSONObject;
+import org.apache.commons.lang.StringUtils;
 import org.fusesource.mqtt.client.BlockingConnection;
+import org.fusesource.mqtt.client.Callback;
+import org.fusesource.mqtt.client.CallbackConnection;
 import org.fusesource.mqtt.client.MQTT;
 import org.fusesource.mqtt.client.QoS;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
-import java.io.IOException;
 import java.io.PrintStream;
+import java.net.URISyntaxException;
 
 /**
- * A simple notifier
+ * A simple build result notifier that publishes the result via MQTT.
+ *
+ * @author Gareth Western
  */
 public class MqttNotifier extends Notifier {
+
+    private static final String DISPLAY_NAME = "MQTT Notification";
+
+    private static final String DEFAULT_TOPIC = "jenkins/$PROJECT_URL";
+    private static final String DEFAULT_MESSAGE = "$BUILD_RESULT";
 
     private final String brokerHost;
 
@@ -55,15 +65,15 @@ public class MqttNotifier extends Notifier {
     }
 
     public String getTopic() {
-        return topic;
+        return StringUtils.isEmpty(topic) ? DEFAULT_TOPIC : topic;
     }
 
     public String getMessage() {
-        return message;
+        return StringUtils.isEmpty(message) ? DEFAULT_MESSAGE : message;
     }
 
-    public String getQos() {
-        return qos;
+    public QoS getQos() {
+        return QoS.valueOf(qos);
     }
 
     public BuildStepMonitor getRequiredMonitorService() {
@@ -76,31 +86,53 @@ public class MqttNotifier extends Notifier {
     }
 
     @Override
-    public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
+    public boolean perform(final AbstractBuild build, final Launcher launcher, final BuildListener listener) {
 
-        PrintStream logger = listener.getLogger();
-
-        String topic = "jenkins/" + build.getProject().getUrl();
-
-        Result result = build.getResult();
+        final PrintStream logger = listener.getLogger();
+        final MQTT mqtt = new MQTT();
         try {
-            MQTT mqtt = new MQTT();
-            mqtt.setHost("localhost", 1883);
-            BlockingConnection connection = mqtt.blockingConnection();
-            connection.connect();
-            connection.publish(topic, result.toString().getBytes(), QoS.AT_LEAST_ONCE, false);
-            connection.disconnect();
-        } catch (Exception e) {
-            logger.println("ERROR: " + e.getMessage());
-            throw new IOException(e);
-        }
+            mqtt.setHost(getBrokerHost(), getBrokerPort());
+            final CallbackConnection connection = mqtt.callbackConnection();
+            connection.connect(new Callback<Void>() {
+                public void onFailure(Throwable value) {
+                    logger.println("ERROR: Failed to connect to MQTT broker: " + value.getMessage());
+                }
 
+                public void onSuccess(Void v) {
+                    connection.publish(
+                            replaceVariables(getTopic(), build),
+                            replaceVariables(getMessage(), build).getBytes(),
+                            getQos(),
+                            false,
+                            new Callback<Void>() {
+                                public void onSuccess(Void v) {
+                                    // noop
+                                }
+
+                                public void onFailure(Throwable value) {
+                                    logger.println("ERROR: Failed to publish MQTT notification: " + value.getMessage());
+                                }
+                            });
+
+                    connection.disconnect(new Callback<Void>() {
+                        public void onSuccess(Void v) {
+                            // noop
+                        }
+
+                        public void onFailure(Throwable value) {
+                            // noop
+                        }
+                    });
+                }
+            });
+        } catch (URISyntaxException use) {
+            logger.println("ERROR: Caught URISyntaxException while configuring MQTT connection: " + use.getMessage());
+        }
         return true;
     }
 
     @Extension
-    public static final class DescriptorImpl
-            extends BuildStepDescriptor<Publisher> {
+    public static final class DescriptorImpl extends BuildStepDescriptor<Publisher> {
 
         public FormValidation doCheckBrokerHost(@QueryParameter String value) {
             return FormValidation.validateRequired(value);
@@ -110,23 +142,12 @@ public class MqttNotifier extends Notifier {
             return FormValidation.validatePositiveInteger(value);
         }
 
-        public FormValidation doCheckTopic(@QueryParameter String value) {
-            return FormValidation.validateRequired(value);
-        }
-
-        public FormValidation doCheckMessage(@QueryParameter String value) {
-            return FormValidation.validateRequired(value);
-        }
-
-        public FormValidation doCheckQos(@QueryParameter String value) {
-            FormValidation result =  FormValidation.validatePositiveInteger(value);
-            if (result == FormValidation.ok()) {
-                int intValue = Integer.valueOf(value);
-                if (intValue > 3) {
-                    result = FormValidation.error("QOS must be either 1, 2, or 3");
-                }
+        public ListBoxModel doFillQosItems() {
+            ListBoxModel items = new ListBoxModel();
+            for (QoS qos : QoS.values()) {
+                items.add(qos.name(), qos.toString());
             }
-            return result;
+            return items;
         }
 
         public boolean isApplicable(Class<? extends AbstractProject> aClass) {
@@ -134,7 +155,7 @@ public class MqttNotifier extends Notifier {
         }
 
         public String getDisplayName() {
-            return "MQTT Notification";
+            return DISPLAY_NAME;
         }
 
         @Override
@@ -142,6 +163,12 @@ public class MqttNotifier extends Notifier {
             save();
             return super.configure(req,formData);
         }
+    }
+
+    private String replaceVariables(final String rawString, final AbstractBuild build) {
+        String result = rawString.replaceAll("\\$PROJECT_URL", build.getProject().getUrl());
+        result = result.replaceAll("\\$BUILD_RESULT", build.getResult().toString());
+        return result;
     }
 
 }

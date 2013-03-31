@@ -1,0 +1,13 @@
+The three Qualities of Service, as defined by the MQTT specification, are:
+<ul>
+    <li>"At most once", where messages are delivered according to the best efforts of
+the underlying TCP/IP network. Message loss or duplication can occur. This
+level could be used, for example, with ambient sensor data where it does not
+matter if an individual reading is lost as the next one will be published soon
+after.</li>
+    <li>"At least once", where messages are assured to arrive but duplicates may
+occur.</li>
+    <li>"Exactly once", where message are assured to arrive exactly once. This level
+could be used, for example, with billing systems where duplicate or lost
+messages could lead to incorrect charges being applied.</li>
+</ul>
