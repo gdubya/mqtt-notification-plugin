@@ -1,4 +1,4 @@
-package com.garethwestern.jenkins.plugins.mqttnotification;
+package jenkins.plugins.mqttnotification;
 
 import hudson.Extension;
 import hudson.Launcher;

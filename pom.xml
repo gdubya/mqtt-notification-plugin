@@ -8,7 +8,7 @@
         <!-- which version of Jenkins is this plugin built against? -->
     </parent>
 
-    <groupId>com.garethwestern.jenkins.plugins</groupId>
+    <groupId>jenkins.plugins</groupId>
     <artifactId>mqtt-notification</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>hpi</packaging>
