@@ -13,8 +13,22 @@
     <version>1.0-SNAPSHOT</version>
     <packaging>hpi</packaging>
     <name>MQTT Notification</name>
+    <url>https://wiki.jenkins-ci.org/display/JENKINS/mqtt-notification</url>
 
-    <!-- get every artifact through repo.jenkins-ci.org, which proxies all the artifacts that we need -->
+    <developers>
+        <developer>
+            <id>gareth_western</id>
+            <name>Gareth Western</name>
+            <email>gareth@garethwestern.com</email>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:ssh://github.com/gdubya/mqtt-notification.git</connection>
+        <developerConnection>scm:git:ssh://github.com/gdubya/mqtt-notification.git</developerConnection>
+        <url>https://github.com/gdubya/mqtt-notification</url>
+    </scm>
+
     <repositories>
         <repository>
             <id>repo.jenkins-ci.org</id>
