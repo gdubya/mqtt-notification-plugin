@@ -1,4 +1,4 @@
-## Pushover Plugin for Jenkins CI
+## MQTT Notification Plugin for Jenkins CI
 
 This is a Jenkins notifier to publish build results using the lightweight [MQTT](http://mqtt.org) protocol.
 
