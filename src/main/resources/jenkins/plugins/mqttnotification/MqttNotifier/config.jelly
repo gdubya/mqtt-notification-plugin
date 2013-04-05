@@ -18,4 +18,8 @@
     <f:entry title="Quality of Service" field="qos">
         <f:select />
     </f:entry>
+
+    <f:entry title="Retain Message?" field="retainMessage">
+        <f:checkbox />
+    </f:entry>
 </j:jelly>
