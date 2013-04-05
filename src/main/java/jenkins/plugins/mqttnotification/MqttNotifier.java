@@ -13,7 +13,6 @@ import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import net.sf.json.JSONObject;
 import org.apache.commons.lang.StringUtils;
-import org.fusesource.mqtt.client.BlockingConnection;
 import org.fusesource.mqtt.client.Callback;
 import org.fusesource.mqtt.client.CallbackConnection;
 import org.fusesource.mqtt.client.MQTT;
@@ -47,13 +46,16 @@ public class MqttNotifier extends Notifier {
 
     private final String qos;
 
+    private final boolean retainMessage;
+
     @DataBoundConstructor
-    public MqttNotifier(String brokerHost, int brokerPort, String topic, String message, String qos) {
+    public MqttNotifier(String brokerHost, int brokerPort, String topic, String message, String qos, boolean retainMessage) {
         this.brokerHost = brokerHost;
         this.brokerPort = brokerPort;
         this.topic = topic;
         this.message = message;
         this.qos = qos;
+        this.retainMessage = retainMessage;
     }
 
     public String getBrokerHost() {
@@ -74,6 +76,10 @@ public class MqttNotifier extends Notifier {
 
     public QoS getQos() {
         return QoS.valueOf(qos);
+    }
+
+    public boolean isRetainMessage() {
+        return retainMessage;
     }
 
     public BuildStepMonitor getRequiredMonitorService() {
@@ -103,7 +109,7 @@ public class MqttNotifier extends Notifier {
                             replaceVariables(getTopic(), build),
                             replaceVariables(getMessage(), build).getBytes(),
                             getQos(),
-                            false,
+                            isRetainMessage(),
                             new Callback<Void>() {
                                 public void onSuccess(Void v) {
                                     // noop
@@ -145,7 +151,11 @@ public class MqttNotifier extends Notifier {
         public ListBoxModel doFillQosItems() {
             ListBoxModel items = new ListBoxModel();
             for (QoS qos : QoS.values()) {
-                items.add(qos.name(), qos.toString());
+                // Disabled until issue is resolved: https://github.com/fusesource/mqtt-client/issues/17
+                // If this QoS is requested then we'll use a different MQTT client library
+                if (qos != QoS.EXACTLY_ONCE) {
+                    items.add(qos.name(), qos.toString());
+                }
             }
             return items;
         }

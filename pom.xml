@@ -26,7 +26,7 @@
     <scm>
         <connection>scm:git:ssh://github.com/jenkinsci/mqtt-notification-plugin.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/jenkinsci/mqtt-notification-plugin.git</developerConnection>
-        <url>https://github.com/gdubya/mqtt-notification-plugin</url>
+        <url>https://github.com/jenkinsci/mqtt-notification-plugin</url>
     </scm>
 
     <repositories>
