@@ -5,6 +5,8 @@ import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.model.BuildListener;
+import hudson.model.Descriptor;
+import hudson.model.User;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Notifier;
@@ -178,6 +180,15 @@ public class MqttNotifier extends Notifier {
     private String replaceVariables(final String rawString, final AbstractBuild build) {
         String result = rawString.replaceAll("\\$PROJECT_URL", build.getProject().getUrl());
         result = result.replaceAll("\\$BUILD_RESULT", build.getResult().toString());
+        if (rawString.contains("$CULPRITS")) {
+            StringBuilder culprits = new StringBuilder();
+            String delim = "";
+            for (Object userObject : build.getCulprits()) {
+                culprits.append(delim).append(userObject.toString());
+                delim = ",";
+            }
+            result = result.replaceAll("\\$CULPRITS", culprits.toString());
+        }
         return result;
     }
 
