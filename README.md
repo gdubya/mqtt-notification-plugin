@@ -9,7 +9,3 @@ In order to use the plugin you will need an MQTT broker to which to publish the 
 ### Wiki
 
 Please see the [Jenkins-CI wiki page](https://wiki.jenkins-ci.org/display/JENKINS/MQTT+Notification+Plugin) for further details.
-
-### Credits
-
-Thanks to [the FuseSource MQTT Client](http://mqtt-client.fusesource.org/) for handling the MQTT client implementation.

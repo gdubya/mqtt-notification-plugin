@@ -1,11 +1,9 @@
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
-    <f:entry title="Broker Host" field="brokerHost" description="URI to the host of your MQTT broker">
+    <f:entry title="Broker URL" field="brokerUrl" description="MQTT Broker URL">
         <f:textbox />
     </f:entry>
 
-    <f:entry title="Broker Port" field="brokerPort" description="TCP port of the MQTT broker">
-        <f:number />
-    </f:entry>
+    <f:validateButton method="testConnection" title="Test connection" with="brokerUrl" progress="Testing..." />
 
     <f:entry title="Topic" field="topic">
         <f:textbox />
