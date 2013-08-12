@@ -13,16 +13,15 @@ import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import net.sf.json.JSONObject;
 import org.apache.commons.lang.StringUtils;
-import org.fusesource.mqtt.client.Callback;
-import org.fusesource.mqtt.client.CallbackConnection;
-import org.fusesource.mqtt.client.MQTT;
-import org.fusesource.mqtt.client.QoS;
+import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttException;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
+import javax.servlet.ServletException;
+import java.io.IOException;
 import java.io.PrintStream;
-import java.net.URISyntaxException;
 
 /**
  * A simple build result notifier that publishes the result via MQTT.
@@ -31,14 +30,14 @@ import java.net.URISyntaxException;
  */
 public class MqttNotifier extends Notifier {
 
+    private static final String CLIENT_ID = MqttNotifier.class.getSimpleName();
+
     private static final String DISPLAY_NAME = "MQTT Notification";
 
     private static final String DEFAULT_TOPIC = "jenkins/$PROJECT_URL";
     private static final String DEFAULT_MESSAGE = "$BUILD_RESULT";
 
-    private final String brokerHost;
-
-    private final int brokerPort;
+    private final String brokerUrl;
 
     private final String topic;
 
@@ -48,22 +47,33 @@ public class MqttNotifier extends Notifier {
 
     private final boolean retainMessage;
 
+    private enum Qos {
+        AT_MOST_ONCE(0),
+        AT_LEAST_ONCE(1),
+        EXACTLY_ONCE(2);
+
+        private int value;
+
+        Qos(final int value) {
+            this.value = value;
+        }
+
+        public int getValue() {
+            return value;
+        }
+    }
+
     @DataBoundConstructor
-    public MqttNotifier(String brokerHost, int brokerPort, String topic, String message, String qos, boolean retainMessage) {
-        this.brokerHost = brokerHost;
-        this.brokerPort = brokerPort;
+    public MqttNotifier(String brokerUrl, String topic, String message, String qos, boolean retainMessage) {
+        this.brokerUrl = brokerUrl;
         this.topic = topic;
         this.message = message;
         this.qos = qos;
         this.retainMessage = retainMessage;
     }
 
-    public String getBrokerHost() {
-        return brokerHost;
-    }
-
-    public int getBrokerPort() {
-        return brokerPort;
+    public String getBrokerUrl() {
+        return brokerUrl;
     }
 
     public String getTopic() {
@@ -74,8 +84,8 @@ public class MqttNotifier extends Notifier {
         return StringUtils.isEmpty(message) ? DEFAULT_MESSAGE : message;
     }
 
-    public QoS getQos() {
-        return QoS.valueOf(qos);
+    public int getQos() {
+        return Integer.valueOf(qos);
     }
 
     public boolean isRetainMessage() {
@@ -93,46 +103,20 @@ public class MqttNotifier extends Notifier {
 
     @Override
     public boolean perform(final AbstractBuild build, final Launcher launcher, final BuildListener listener) {
-
         final PrintStream logger = listener.getLogger();
-        final MQTT mqtt = new MQTT();
         try {
-            mqtt.setHost(getBrokerHost(), getBrokerPort());
-            final CallbackConnection connection = mqtt.callbackConnection();
-            connection.connect(new Callback<Void>() {
-                public void onFailure(Throwable value) {
-                    logger.println("ERROR: Failed to connect to MQTT broker: " + value.getMessage());
-                }
-
-                public void onSuccess(Void v) {
-                    connection.publish(
-                            replaceVariables(getTopic(), build),
-                            replaceVariables(getMessage(), build).getBytes(),
-                            getQos(),
-                            isRetainMessage(),
-                            new Callback<Void>() {
-                                public void onSuccess(Void v) {
-                                    // noop
-                                }
-
-                                public void onFailure(Throwable value) {
-                                    logger.println("ERROR: Failed to publish MQTT notification: " + value.getMessage());
-                                }
-                            });
-
-                    connection.disconnect(new Callback<Void>() {
-                        public void onSuccess(Void v) {
-                            // noop
-                        }
-
-                        public void onFailure(Throwable value) {
-                            // noop
-                        }
-                    });
-                }
-            });
-        } catch (URISyntaxException use) {
-            logger.println("ERROR: Caught URISyntaxException while configuring MQTT connection: " + use.getMessage());
+            final MqttClient mqtt = new MqttClient(getBrokerUrl(), CLIENT_ID);
+            mqtt.connect();
+            mqtt.publish(
+                    replaceVariables(getTopic(), build),
+                    replaceVariables(getMessage(), build).getBytes(),
+                    getQos(),
+                    isRetainMessage()
+            );
+            mqtt.disconnect();
+        } catch (final MqttException me) {
+            logger.println("ERROR: Caught MqttException while configuring MQTT connection: " + me.getMessage());
+            me.printStackTrace(logger);
         }
         return true;
     }
@@ -150,14 +134,22 @@ public class MqttNotifier extends Notifier {
 
         public ListBoxModel doFillQosItems() {
             ListBoxModel items = new ListBoxModel();
-            for (QoS qos : QoS.values()) {
-                // Disabled until issue is resolved: https://github.com/fusesource/mqtt-client/issues/17
-                // If this QoS is requested then we'll use a different MQTT client library
-                if (qos != QoS.EXACTLY_ONCE) {
-                    items.add(qos.name(), qos.toString());
-                }
+            for (Qos qos : Qos.values()) {
+                items.add(qos.name(), String.valueOf(qos.getValue()));
             }
             return items;
+        }
+
+        public FormValidation doTestConnection(@QueryParameter("brokerUrl") final String brokerUrl)
+                throws IOException, ServletException {
+            try {
+                final MqttClient mqtt = new MqttClient(brokerUrl, CLIENT_ID);
+                mqtt.connect();
+                mqtt.disconnect();
+                return FormValidation.ok("Success");
+            } catch (MqttException me) {
+                return FormValidation.error(me, "Failed to connect");
+            }
         }
 
         public boolean isApplicable(Class<? extends AbstractProject> aClass) {
@@ -178,6 +170,15 @@ public class MqttNotifier extends Notifier {
     private String replaceVariables(final String rawString, final AbstractBuild build) {
         String result = rawString.replaceAll("\\$PROJECT_URL", build.getProject().getUrl());
         result = result.replaceAll("\\$BUILD_RESULT", build.getResult().toString());
+        if (rawString.contains("$CULPRITS")) {
+            StringBuilder culprits = new StringBuilder();
+            String delim = "";
+            for (Object userObject : build.getCulprits()) {
+                culprits.append(delim).append(userObject.toString());
+                delim = ",";
+            }
+            result = result.replaceAll("\\$CULPRITS", culprits.toString());
+        }
         return result;
     }
 
