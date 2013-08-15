@@ -15,6 +15,7 @@ import net.sf.json.JSONObject;
 import org.apache.commons.lang.StringUtils;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttException;
+import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
@@ -105,7 +106,9 @@ public class MqttNotifier extends Notifier {
     public boolean perform(final AbstractBuild build, final Launcher launcher, final BuildListener listener) {
         final PrintStream logger = listener.getLogger();
         try {
-            final MqttClient mqtt = new MqttClient(getBrokerUrl(), CLIENT_ID);
+            final String tmpDir = System.getProperty("java.io.tmpdir");
+            final MqttDefaultFilePersistence dataStore = new MqttDefaultFilePersistence(tmpDir);
+            final MqttClient mqtt = new MqttClient(getBrokerUrl(), CLIENT_ID, dataStore);
             mqtt.connect();
             mqtt.publish(
                     replaceVariables(getTopic(), build),
@@ -143,7 +146,9 @@ public class MqttNotifier extends Notifier {
         public FormValidation doTestConnection(@QueryParameter("brokerUrl") final String brokerUrl)
                 throws IOException, ServletException {
             try {
-                final MqttClient mqtt = new MqttClient(brokerUrl, CLIENT_ID);
+                final String tmpDir = System.getProperty("java.io.tmpdir");
+                final MqttDefaultFilePersistence dataStore = new MqttDefaultFilePersistence(tmpDir);
+                final MqttClient mqtt = new MqttClient(brokerUrl, CLIENT_ID, dataStore);
                 mqtt.connect();
                 mqtt.disconnect();
                 return FormValidation.ok("Success");
