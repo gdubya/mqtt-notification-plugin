@@ -1,9 +1,13 @@
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
     <f:entry title="Broker URL" field="brokerUrl" description="MQTT Broker URL">
         <f:textbox />
     </f:entry>
 
     <f:validateButton method="testConnection" title="Test connection" with="brokerUrl" progress="Testing..." />
+
+    <f:entry title="Credentials" field="credentialsId">
+        <f:select/>
+    </f:entry>
 
     <f:entry title="Topic" field="topic">
         <f:textbox />

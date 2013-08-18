@@ -1,19 +1,27 @@
 package jenkins.plugins.mqttnotification;
 
+import com.cloudbees.plugins.credentials.CredentialsMatchers;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.common.StandardUsernameListBoxModel;
+import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
+import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import hudson.Extension;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.model.BuildListener;
+import hudson.security.ACL;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Notifier;
 import hudson.tasks.Publisher;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
+import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 import org.apache.commons.lang.StringUtils;
 import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -23,6 +31,7 @@ import org.kohsuke.stapler.StaplerRequest;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.ArrayList;
 
 /**
  * A simple build result notifier that publishes the result via MQTT.
@@ -48,6 +57,10 @@ public class MqttNotifier extends Notifier {
 
     private final boolean retainMessage;
 
+    private final String credentialsId;
+
+    private StandardUsernamePasswordCredentials credentials;
+
     private enum Qos {
         AT_MOST_ONCE(0),
         AT_LEAST_ONCE(1),
@@ -65,12 +78,23 @@ public class MqttNotifier extends Notifier {
     }
 
     @DataBoundConstructor
-    public MqttNotifier(String brokerUrl, String topic, String message, String qos, boolean retainMessage) {
+    public MqttNotifier(String brokerUrl, String topic, String message, String qos, boolean retainMessage, String credentialsId) {
+        this(brokerUrl, topic, message, qos, retainMessage, lookupSystemCredentials(credentialsId));
+    }
+
+    public MqttNotifier(String brokerUrl, String topic, String message, String qos, boolean retainMessage,
+                        StandardUsernamePasswordCredentials credentials) {
         this.brokerUrl = brokerUrl;
         this.topic = topic;
         this.message = message;
         this.qos = qos;
         this.retainMessage = retainMessage;
+        this.credentials = credentials;
+        this.credentialsId = credentials == null ? null : credentials.getId();
+    }
+
+    public String getCredentialsId() {
+        return credentialsId;
     }
 
     public String getBrokerUrl() {
@@ -102,6 +126,18 @@ public class MqttNotifier extends Notifier {
         return true;
     }
 
+    public static StandardUsernamePasswordCredentials lookupSystemCredentials(String credentialsId) {
+        return CredentialsMatchers.firstOrNull(
+                CredentialsProvider.lookupCredentials(
+                        StandardUsernamePasswordCredentials.class,
+                        Jenkins.getInstance(),
+                        ACL.SYSTEM,
+                        new ArrayList<DomainRequirement>()
+                ),
+                CredentialsMatchers.withId(credentialsId)
+        );
+    }
+
     @Override
     public boolean perform(final AbstractBuild build, final Launcher launcher, final BuildListener listener) {
         final PrintStream logger = listener.getLogger();
@@ -109,7 +145,12 @@ public class MqttNotifier extends Notifier {
             final String tmpDir = System.getProperty("java.io.tmpdir");
             final MqttDefaultFilePersistence dataStore = new MqttDefaultFilePersistence(tmpDir);
             final MqttClient mqtt = new MqttClient(getBrokerUrl(), CLIENT_ID, dataStore);
-            mqtt.connect();
+            MqttConnectOptions mqttConnectOptions = new MqttConnectOptions();
+            if (this.credentials != null) {
+                mqttConnectOptions.setUserName(this.credentials.getUsername());
+                mqttConnectOptions.setPassword(this.credentials.getPassword().getPlainText().toCharArray());
+            }
+            mqtt.connect(mqttConnectOptions);
             mqtt.publish(
                     replaceVariables(getTopic(), build),
                     replaceVariables(getMessage(), build).getBytes(),
@@ -157,6 +198,17 @@ public class MqttNotifier extends Notifier {
             }
         }
 
+        public ListBoxModel doFillCredentialsIdItems() {
+            return new StandardUsernameListBoxModel().withEmptySelection().withAll(
+                    CredentialsProvider.lookupCredentials(
+                            StandardUsernamePasswordCredentials.class,
+                            Jenkins.getInstance(),
+                            ACL.SYSTEM,
+                            new ArrayList<DomainRequirement>()
+                    )
+            );
+        }
+
         public boolean isApplicable(Class<? extends AbstractProject> aClass) {
             return true;
         }
@@ -168,7 +220,7 @@ public class MqttNotifier extends Notifier {
         @Override
         public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
             save();
-            return super.configure(req,formData);
+            return super.configure(req, formData);
         }
     }
 
