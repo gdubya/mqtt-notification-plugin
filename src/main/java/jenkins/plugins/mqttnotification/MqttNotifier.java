@@ -184,13 +184,26 @@ public class MqttNotifier extends Notifier {
             return items;
         }
 
-        public FormValidation doTestConnection(@QueryParameter("brokerUrl") final String brokerUrl)
+        public FormValidation doTestConnection(@QueryParameter("brokerUrl") final String brokerUrl, @QueryParameter("credentialsId") final String credentialsId)
                 throws IOException, ServletException {
+            if (brokerUrl == null || brokerUrl.trim().isEmpty()) {
+                return FormValidation.error("Broker URL must not be empty");
+            }
             try {
                 final String tmpDir = System.getProperty("java.io.tmpdir");
                 final MqttDefaultFilePersistence dataStore = new MqttDefaultFilePersistence(tmpDir);
                 final MqttClient mqtt = new MqttClient(brokerUrl, CLIENT_ID, dataStore);
-                mqtt.connect();
+
+                MqttConnectOptions mqttConnectOptions = new MqttConnectOptions();
+
+                StandardUsernamePasswordCredentials credentials = MqttNotifier.lookupSystemCredentials(credentialsId);
+
+                if (credentials != null) {
+                    mqttConnectOptions.setUserName(credentials.getUsername());
+                    mqttConnectOptions.setPassword(credentials.getPassword().getPlainText().toCharArray());
+                }
+
+                mqtt.connect(mqttConnectOptions);
                 mqtt.disconnect();
                 return FormValidation.ok("Success");
             } catch (MqttException me) {
