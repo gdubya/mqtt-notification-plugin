@@ -3,11 +3,11 @@
         <f:textbox />
     </f:entry>
 
-    <f:validateButton method="testConnection" title="Test connection" with="brokerUrl" progress="Testing..." />
-
     <f:entry title="Credentials" field="credentialsId">
         <f:select/>
     </f:entry>
+
+    <f:validateButton method="testConnection" title="Test connection" with="brokerUrl,credentialsId" progress="Testing..." />
 
     <f:entry title="Topic" field="topic">
         <f:textbox />
