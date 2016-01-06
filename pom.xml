@@ -8,7 +8,7 @@
 
     <groupId>jenkins.plugins</groupId>
     <artifactId>mqtt-notification-plugin</artifactId>
-    <version>1.2.1</version>
+    <version>1.3-SNAPSHOT</version>
     <packaging>hpi</packaging>
     <name>MQTT Notification Plugin</name>
     <url>https://wiki.jenkins-ci.org/display/JENKINS/MQTT+Notification+Plugin</url>
@@ -25,7 +25,7 @@
         <connection>scm:git:ssh://github.com/jenkinsci/mqtt-notification-plugin.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/jenkinsci/mqtt-notification-plugin.git</developerConnection>
         <url>https://github.com/jenkinsci/mqtt-notification-plugin</url>
-      <tag>mqtt-notification-plugin-1.2.1</tag>
+      <tag>HEAD</tag>
   </scm>
 
     <repositories>
