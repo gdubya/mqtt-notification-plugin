@@ -10,6 +10,7 @@ import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.model.BuildListener;
+import hudson.model.Item;
 import hudson.security.ACL;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
@@ -24,6 +25,7 @@ import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence;
+import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
@@ -128,13 +130,13 @@ public class MqttNotifier extends Notifier {
 
     public static StandardUsernamePasswordCredentials lookupSystemCredentials(String credentialsId) {
         return CredentialsMatchers.firstOrNull(
-                CredentialsProvider.lookupCredentials(
-                        StandardUsernamePasswordCredentials.class,
-                        Jenkins.getInstance(),
-                        ACL.SYSTEM,
-                        new ArrayList<DomainRequirement>()
-                ),
-                CredentialsMatchers.withId(credentialsId)
+            CredentialsProvider.lookupCredentials(
+                StandardUsernamePasswordCredentials.class,
+                Jenkins.getInstance(),
+                ACL.SYSTEM,
+                new ArrayList<DomainRequirement>()
+            ),
+            CredentialsMatchers.withId(credentialsId)
         );
     }
 
@@ -152,10 +154,10 @@ public class MqttNotifier extends Notifier {
             }
             mqtt.connect(mqttConnectOptions);
             mqtt.publish(
-                    replaceVariables(getTopic(), build),
-                    replaceVariables(getMessage(), build).getBytes(),
-                    getQos(),
-                    isRetainMessage()
+                replaceVariables(getTopic(), build),
+                replaceVariables(getMessage(), build).getBytes(),
+                getQos(),
+                isRetainMessage()
             );
             mqtt.disconnect();
         } catch (final MqttException me) {
@@ -184,8 +186,9 @@ public class MqttNotifier extends Notifier {
             return items;
         }
 
-        public FormValidation doTestConnection(@QueryParameter("brokerUrl") final String brokerUrl, @QueryParameter("credentialsId") final String credentialsId)
-                throws IOException, ServletException {
+        public FormValidation doTestConnection(@QueryParameter("brokerUrl") final String brokerUrl,
+                                               @QueryParameter("credentialsId") final String credentialsId)
+            throws IOException, ServletException {
             if (brokerUrl == null || brokerUrl.trim().isEmpty()) {
                 return FormValidation.error("Broker URL must not be empty");
             }
@@ -211,15 +214,19 @@ public class MqttNotifier extends Notifier {
             }
         }
 
-        public ListBoxModel doFillCredentialsIdItems() {
-            return new StandardUsernameListBoxModel().withEmptySelection().withAll(
+        public ListBoxModel doFillCredentialsIdItems(@AncestorInPath Item context) {
+            return context != null && context.hasPermission(Item.CONFIGURE)
+                ? new StandardUsernameListBoxModel()
+                .withEmptySelection()
+                .withAll(
                     CredentialsProvider.lookupCredentials(
-                            StandardUsernamePasswordCredentials.class,
-                            Jenkins.getInstance(),
-                            ACL.SYSTEM,
-                            new ArrayList<DomainRequirement>()
+                        StandardUsernamePasswordCredentials.class,
+                        context,
+                        ACL.SYSTEM,
+                        new ArrayList<DomainRequirement>()
                     )
-            );
+                )
+                : new ListBoxModel();
         }
 
         public boolean isApplicable(Class<? extends AbstractProject> aClass) {
