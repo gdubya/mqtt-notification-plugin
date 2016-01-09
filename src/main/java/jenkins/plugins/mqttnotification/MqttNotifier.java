@@ -5,6 +5,7 @@ import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardUsernameListBoxModel;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
+import hudson.EnvVars;
 import hudson.Extension;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
@@ -34,6 +35,7 @@ import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Map;
 
 /**
  * A simple build result notifier that publishes the result via MQTT.
@@ -154,8 +156,8 @@ public class MqttNotifier extends Notifier {
             }
             mqtt.connect(mqttConnectOptions);
             mqtt.publish(
-                replaceVariables(getTopic(), build),
-                replaceVariables(getMessage(), build).getBytes(),
+                replaceVariables(getTopic(), build, listener),
+                replaceVariables(getMessage(), build, listener).getBytes(),
                 getQos(),
                 isRetainMessage()
             );
@@ -244,7 +246,31 @@ public class MqttNotifier extends Notifier {
         }
     }
 
-    private String replaceVariables(final String rawString, final AbstractBuild build) {
+    /**
+     * Replace both static and environment variables defined in the given rawString
+     * @param rawString The string containing variables to be replaced
+     * @param build The current build
+     * @param listener The current buildListener
+     * @return a new String with variables replaced
+     */
+    private String replaceVariables(final String rawString, final AbstractBuild build, BuildListener listener) {
+        String result = replaceStaticVariables(rawString, build);
+        result = replaceEnvironmentVariables(result, build, listener);
+        return result;
+    }
+
+    /**
+     * Replace the static variables (defined by this plugin):
+     * <ul>
+     *     <li>BUILD_RESULT</li> The build result (e.g. SUCCESS)
+     *     <li>PROJECT_URL</li> The URL to the project
+     *     <li>CULPRITS</li> The culprits responsible for the build
+     * </ul>
+     * @param rawString The string containing variables to be replaced
+     * @param build The current build
+     * @return a new String with variables replaced
+     */
+    private String replaceStaticVariables(final String rawString, final AbstractBuild build) {
         String result = rawString.replaceAll("\\$PROJECT_URL", build.getProject().getUrl());
         result = result.replaceAll("\\$BUILD_RESULT", build.getResult().toString());
         if (rawString.contains("$CULPRITS")) {
@@ -255,6 +281,33 @@ public class MqttNotifier extends Notifier {
                 delim = ",";
             }
             result = result.replaceAll("\\$CULPRITS", culprits.toString());
+        }
+        return result;
+    }
+
+    /**
+     *
+     * @param rawString The string containing variables to be replaced
+     * @param build The current build
+     * @param listener The current buildListener
+     * @return a new String with variables replaced
+     */
+    private String replaceEnvironmentVariables(final String rawString, final AbstractBuild build, BuildListener listener) {
+        final PrintStream logger = listener.getLogger();
+        String result = rawString;
+        try {
+            EnvVars environment = build.getProject().getEnvironment(build.getBuiltOn(), listener);
+            for (Map.Entry<String, String> envVarEntry : environment.entrySet()) {
+                String key = "\\$" + envVarEntry.getKey();
+                String value = envVarEntry.getValue();
+                result = result.replaceAll(key, value);
+            }
+        } catch (IOException ioe) {
+            logger.println("ERROR: Caught IOException while trying to replace environment variables: " + ioe.getMessage());
+            ioe.printStackTrace(logger);
+        } catch (InterruptedException ie) {
+            logger.println("ERROR: Caught InterruptedException while trying to replace environment variables: " + ie.getMessage());
+            ie.printStackTrace(logger);
         }
         return result;
     }
