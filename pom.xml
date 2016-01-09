@@ -26,7 +26,7 @@
         <developerConnection>scm:git:ssh://git@github.com/jenkinsci/mqtt-notification-plugin.git</developerConnection>
         <url>https://github.com/jenkinsci/mqtt-notification-plugin</url>
       <tag>HEAD</tag>
-  </scm>
+    </scm>
 
     <repositories>
         <repository>
@@ -46,16 +46,21 @@
         </pluginRepository>
     </pluginRepositories>
 
+    <properties>
+        <credentials.version>1.7.3</credentials.version>
+        <paho.version>1.0.2</paho.version>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.eclipse.paho</groupId>
-            <artifactId>mqtt-client</artifactId>
-            <version>0.4.0</version>
+            <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
+            <version>${paho.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>credentials</artifactId>
-            <version>1.7.3</version>
+            <version>${credentials.version}</version>
         </dependency>
     </dependencies>
 </project>
