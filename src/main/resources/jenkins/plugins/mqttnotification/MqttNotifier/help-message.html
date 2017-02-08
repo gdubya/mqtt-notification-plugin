@@ -1,7 +1,8 @@
 <p>The "payload" for the MQTT message.</p>
-<p>In addition to environment variables, the following variables can also be used (all variables must be prefix with "$"):
+<p>In addition to environment variables and build parameters, the following variables can also be used (all variables must be prefix with "$"):
 <ul>
     <li>BUILD_RESULT - The result of the build (e.g. SUCCESS, FAILURE, ABORTED, etc.)</li>
     <li>PROJECT_URL - The job project's URL (e.g. "job/my-build")</li>
     <li>CULPRITS - Comma-separated list of the culprits responsible for the current build result</li>
+    <li>BUILD_NUMBER - the build number</li>
 </ul></p>

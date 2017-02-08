@@ -247,7 +247,7 @@ public class MqttNotifier extends Notifier {
     }
 
     /**
-     * Replace both static and environment variables defined in the given rawString
+     * Replace both static and environment variables, build parameters defined in the given rawString
      * @param rawString The string containing variables to be replaced
      * @param build The current build
      * @param listener The current buildListener
@@ -256,6 +256,7 @@ public class MqttNotifier extends Notifier {
     private String replaceVariables(final String rawString, final AbstractBuild build, BuildListener listener) {
         String result = replaceStaticVariables(rawString, build);
         result = replaceEnvironmentVariables(result, build, listener);
+        result = replaceBuildVariables(result, build, listener);
         return result;
     }
 
@@ -265,6 +266,7 @@ public class MqttNotifier extends Notifier {
      *     <li>BUILD_RESULT</li> The build result (e.g. SUCCESS)
      *     <li>PROJECT_URL</li> The URL to the project
      *     <li>CULPRITS</li> The culprits responsible for the build
+     *     <li>BUILD_NUMBER</li> The build number
      * </ul>
      * @param rawString The string containing variables to be replaced
      * @param build The current build
@@ -273,6 +275,8 @@ public class MqttNotifier extends Notifier {
     private String replaceStaticVariables(final String rawString, final AbstractBuild build) {
         String result = rawString.replaceAll("\\$PROJECT_URL", build.getProject().getUrl());
         result = result.replaceAll("\\$BUILD_RESULT", build.getResult().toString());
+        String number = "" + build.number;
+        result = result.replaceAll("\\$BUILD_NUMBER", number);
         if (rawString.contains("$CULPRITS")) {
             StringBuilder culprits = new StringBuilder();
             String delim = "";
@@ -308,6 +312,25 @@ public class MqttNotifier extends Notifier {
         } catch (InterruptedException ie) {
             logger.println("ERROR: Caught InterruptedException while trying to replace environment variables: " + ie.getMessage());
             ie.printStackTrace(logger);
+        }
+        return result;
+    }
+
+    /**
+     *
+     * @param rawString The string containing variables to be replaced
+     * @param build The current build
+     * @param listener The current buildListener
+     * @return a new String with variables replaced
+     */
+    private String replaceBuildVariables(final String rawString, final AbstractBuild build, BuildListener listener) {
+        final PrintStream logger = listener.getLogger();
+        String result = rawString;
+        Map<String, String> buildVarMap = build.getBuildVariables();
+        for (Map.Entry<String, String> buildVarEntry : buildVarMap.entrySet()) {
+            String key = "\\$" + buildVarEntry.getKey();
+            String value = buildVarEntry.getValue();
+            result = result.replaceAll(key, value);
         }
         return result;
     }
