@@ -12,6 +12,7 @@ import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.model.BuildListener;
 import hudson.model.Item;
+import hudson.model.Result;
 import hudson.security.ACL;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
@@ -25,6 +26,7 @@ import org.apache.commons.lang.StringUtils;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
+import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -34,6 +36,7 @@ import org.kohsuke.stapler.StaplerRequest;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Map;
 
@@ -114,7 +117,7 @@ public class MqttNotifier extends Notifier {
     }
 
     public int getQos() {
-        return Integer.valueOf(qos);
+        return Integer.parseInt(qos);
     }
 
     public boolean isRetainMessage() {
@@ -157,7 +160,7 @@ public class MqttNotifier extends Notifier {
             mqtt.connect(mqttConnectOptions);
             mqtt.publish(
                 replaceVariables(getTopic(), build, listener),
-                replaceVariables(getMessage(), build, listener).getBytes(),
+                replaceVariables(getMessage(), build, listener).getBytes(StandardCharsets.UTF_8),
                 getQos(),
                 isRetainMessage()
             );
@@ -274,7 +277,10 @@ public class MqttNotifier extends Notifier {
      */
     private String replaceStaticVariables(final String rawString, final AbstractBuild build) {
         String result = rawString.replaceAll("\\$PROJECT_URL", build.getProject().getUrl());
-        result = result.replaceAll("\\$BUILD_RESULT", build.getResult().toString());
+        Result buildResult = build.getResult();
+        if (buildResult != null) {
+            result = result.replaceAll("\\$BUILD_RESULT", buildResult.toString());
+        }
         result = result.replaceAll("\\$BUILD_NUMBER", Integer.toString(build.getNumber()));
         if (rawString.contains("$CULPRITS")) {
             StringBuilder culprits = new StringBuilder();
