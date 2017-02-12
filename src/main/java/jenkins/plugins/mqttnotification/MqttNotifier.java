@@ -256,7 +256,7 @@ public class MqttNotifier extends Notifier {
     private String replaceVariables(final String rawString, final AbstractBuild build, BuildListener listener) {
         String result = replaceStaticVariables(rawString, build);
         result = replaceEnvironmentVariables(result, build, listener);
-        result = replaceBuildVariables(result, build, listener);
+        result = replaceBuildVariables(result, build);
         return result;
     }
 
@@ -275,8 +275,7 @@ public class MqttNotifier extends Notifier {
     private String replaceStaticVariables(final String rawString, final AbstractBuild build) {
         String result = rawString.replaceAll("\\$PROJECT_URL", build.getProject().getUrl());
         result = result.replaceAll("\\$BUILD_RESULT", build.getResult().toString());
-        String number = "" + build.number;
-        result = result.replaceAll("\\$BUILD_NUMBER", number);
+        result = result.replaceAll("\\$BUILD_NUMBER", Integer.toString(build.getNumber()));
         if (rawString.contains("$CULPRITS")) {
             StringBuilder culprits = new StringBuilder();
             String delim = "";
@@ -289,13 +288,6 @@ public class MqttNotifier extends Notifier {
         return result;
     }
 
-    /**
-     *
-     * @param rawString The string containing variables to be replaced
-     * @param build The current build
-     * @param listener The current buildListener
-     * @return a new String with variables replaced
-     */
     private String replaceEnvironmentVariables(final String rawString, final AbstractBuild build, BuildListener listener) {
         final PrintStream logger = listener.getLogger();
         String result = rawString;
@@ -316,15 +308,7 @@ public class MqttNotifier extends Notifier {
         return result;
     }
 
-    /**
-     *
-     * @param rawString The string containing variables to be replaced
-     * @param build The current build
-     * @param listener The current buildListener
-     * @return a new String with variables replaced
-     */
-    private String replaceBuildVariables(final String rawString, final AbstractBuild build, BuildListener listener) {
-        final PrintStream logger = listener.getLogger();
+    private String replaceBuildVariables(final String rawString, final AbstractBuild build) {
         String result = rawString;
         Map<String, String> buildVarMap = build.getBuildVariables();
         for (Map.Entry<String, String> buildVarEntry : buildVarMap.entrySet()) {
