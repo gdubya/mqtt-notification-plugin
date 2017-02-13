@@ -276,19 +276,23 @@ public class MqttNotifier extends Notifier {
      * @return a new String with variables replaced
      */
     private String replaceStaticVariables(final String rawString, final AbstractBuild build) {
-        String result = rawString.replaceAll("\\$PROJECT_URL", build.getProject().getUrl());
+        String result = rawString.replaceAll("\\$\\{PROJECT_URL\\}", build.getProject().getUrl());
+        result = rawString.replaceAll("\\$PROJECT_URL", build.getProject().getUrl());
         Result buildResult = build.getResult();
         if (buildResult != null) {
+            result = result.replaceAll("\\$\\{BUILD_RESULT\\}", buildResult.toString());
             result = result.replaceAll("\\$BUILD_RESULT", buildResult.toString());
         }
+        result = result.replaceAll("\\$\\{BUILD_NUMBER\\}", Integer.toString(build.getNumber()));
         result = result.replaceAll("\\$BUILD_NUMBER", Integer.toString(build.getNumber()));
-        if (rawString.contains("$CULPRITS")) {
+        if (rawString.contains("$\\{CULPRITS\\}") || rawString.contains("$CULPRITS")) {
             StringBuilder culprits = new StringBuilder();
             String delim = "";
             for (Object userObject : build.getCulprits()) {
                 culprits.append(delim).append(userObject.toString());
                 delim = ",";
             }
+            result = result.replaceAll("\\$\\{CULPRITS\\}", culprits.toString());
             result = result.replaceAll("\\$CULPRITS", culprits.toString());
         }
         return result;
@@ -300,9 +304,11 @@ public class MqttNotifier extends Notifier {
         try {
             EnvVars environment = build.getProject().getEnvironment(build.getBuiltOn(), listener);
             for (Map.Entry<String, String> envVarEntry : environment.entrySet()) {
-                String key = "\\$" + envVarEntry.getKey();
+                String key1 = "\\$\\{" + envVarEntry.getKey() + "\\}";
+                String key2 = "\\$" + envVarEntry.getKey();
                 String value = envVarEntry.getValue();
-                result = result.replaceAll(key, value);
+                result = result.replaceAll(key1, value);
+                result = result.replaceAll(key2, value);
             }
         } catch (IOException ioe) {
             logger.println("ERROR: Caught IOException while trying to replace environment variables: " + ioe.getMessage());
@@ -318,9 +324,11 @@ public class MqttNotifier extends Notifier {
         String result = rawString;
         Map<String, String> buildVarMap = build.getBuildVariables();
         for (Map.Entry<String, String> buildVarEntry : buildVarMap.entrySet()) {
-            String key = "\\$" + buildVarEntry.getKey();
+            String key1 = "\\$\\{" + buildVarEntry.getKey() + "\\}";
+            String key2 = "\\$" + buildVarEntry.getKey();
             String value = buildVarEntry.getValue();
-            result = result.replaceAll(key, value);
+            result = result.replaceAll(key1, value);
+            result = result.replaceAll(key2, value);
         }
         return result;
     }
