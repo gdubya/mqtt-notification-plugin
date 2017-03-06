@@ -26,7 +26,6 @@ import org.apache.commons.lang.StringUtils;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
-import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -133,7 +132,7 @@ public class MqttNotifier extends Notifier {
         return true;
     }
 
-    public static StandardUsernamePasswordCredentials lookupSystemCredentials(String credentialsId) {
+    static StandardUsernamePasswordCredentials lookupSystemCredentials(String credentialsId) {
         return CredentialsMatchers.firstOrNull(
             CredentialsProvider.lookupCredentials(
                 StandardUsernamePasswordCredentials.class,
