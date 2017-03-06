@@ -23,6 +23,7 @@ import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.text.StrSubstitutor;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
@@ -38,6 +39,7 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.HashMap;
 
 /**
  * A simple build result notifier that publishes the result via MQTT.
@@ -275,21 +277,25 @@ public class MqttNotifier extends Notifier {
      * @return a new String with variables replaced
      */
     private String replaceStaticVariables(final String rawString, final AbstractBuild build) {
-        String result = rawString.replaceAll("\\$PROJECT_URL", build.getProject().getUrl());
+        Map<String, String> staticValuesMap = new HashMap<String, String>();
+        staticValuesMap.put("PROJECT_URL", build.getProject().getUrl());
         Result buildResult = build.getResult();
         if (buildResult != null) {
-            result = result.replaceAll("\\$BUILD_RESULT", buildResult.toString());
+            staticValuesMap.put("BUILD_RESULT", buildResult.toString());
         }
-        result = result.replaceAll("\\$BUILD_NUMBER", Integer.toString(build.getNumber()));
-        if (rawString.contains("$CULPRITS")) {
+        staticValuesMap.put("BUILD_NUMBER", Integer.toString(build.getNumber()));
+        if (rawString.contains("$\\{CULPRITS\\}")) {
             StringBuilder culprits = new StringBuilder();
             String delim = "";
             for (Object userObject : build.getCulprits()) {
                 culprits.append(delim).append(userObject.toString());
                 delim = ",";
             }
-            result = result.replaceAll("\\$CULPRITS", culprits.toString());
+            staticValuesMap.put("CULPRITS", culprits.toString());
         }
+        StrSubstitutor sub = new StrSubstitutor(staticValuesMap);
+        String result = sub.replace(rawString);
+
         return result;
     }
 
@@ -298,11 +304,14 @@ public class MqttNotifier extends Notifier {
         String result = rawString;
         try {
             EnvVars environment = build.getProject().getEnvironment(build.getBuiltOn(), listener);
+            Map<String, String> envValuesMap = new HashMap<String, String>();
             for (Map.Entry<String, String> envVarEntry : environment.entrySet()) {
-                String key = "\\$" + envVarEntry.getKey();
+                String key = envVarEntry.getKey();
                 String value = envVarEntry.getValue();
-                result = result.replaceAll(key, value);
+                envValuesMap.put(key, value);
             }
+            StrSubstitutor sub = new StrSubstitutor(envValuesMap);
+            result = sub.replace(rawString);
         } catch (IOException ioe) {
             logger.println("ERROR: Caught IOException while trying to replace environment variables: " + ioe.getMessage());
             ioe.printStackTrace(logger);
@@ -314,13 +323,15 @@ public class MqttNotifier extends Notifier {
     }
 
     private String replaceBuildVariables(final String rawString, final AbstractBuild build) {
-        String result = rawString;
         Map<String, String> buildVarMap = build.getBuildVariables();
+        Map<String, String> buildValuesMap = new HashMap<String, String>();
         for (Map.Entry<String, String> buildVarEntry : buildVarMap.entrySet()) {
-            String key = "\\$" + buildVarEntry.getKey();
+            String key = buildVarEntry.getKey();
             String value = buildVarEntry.getValue();
-            result = result.replaceAll(key, value);
+            buildValuesMap.put(key, value);
         }
+        StrSubstitutor sub = new StrSubstitutor(buildValuesMap);
+        String result = sub.replace(rawString);
         return result;
     }
 
