@@ -9,7 +9,7 @@
 
     <groupId>jenkins.plugins</groupId>
     <artifactId>mqtt-notification-plugin</artifactId>
-    <version>1.4.3-SNAPSHOT</version>
+    <version>1.5-SNAPSHOT</version>
     <packaging>hpi</packaging>
     <name>MQTT Notification Plugin</name>
     <url>https://wiki.jenkins-ci.org/display/JENKINS/MQTT+Notification+Plugin</url>
@@ -70,11 +70,6 @@
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
             <version>${commons-lang.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
-            <version>3.1</version>
         </dependency>
     </dependencies>
 </project>
