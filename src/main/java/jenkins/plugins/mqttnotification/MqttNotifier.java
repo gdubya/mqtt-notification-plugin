@@ -5,7 +5,6 @@ import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardUsernameListBoxModel;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
-import hudson.EnvVars;
 import hudson.Extension;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
@@ -27,7 +26,6 @@ import org.apache.commons.lang3.text.StrSubstitutor;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
-import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -39,8 +37,8 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Map;
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * A simple build result notifier that publishes the result via MQTT.
@@ -135,7 +133,7 @@ public class MqttNotifier extends Notifier {
         return true;
     }
 
-    public static StandardUsernamePasswordCredentials lookupSystemCredentials(String credentialsId) {
+    static StandardUsernamePasswordCredentials lookupSystemCredentials(String credentialsId) {
         return CredentialsMatchers.firstOrNull(
             CredentialsProvider.lookupCredentials(
                 StandardUsernamePasswordCredentials.class,
@@ -278,41 +276,25 @@ public class MqttNotifier extends Notifier {
      * @return a new String with variables replaced
      */
     private String replaceStaticVariables(final String rawString, final AbstractBuild build) {
-        Map<String, String> staticValuesMap = new HashMap<String, String>();
-        staticValuesMap.put("PROJECT_URL", build.getProject().getUrl());
+        Map<String, String> staticValuesMap = new HashMap<>();
         Result buildResult = build.getResult();
-        if (buildResult != null) {
-            staticValuesMap.put("BUILD_RESULT", buildResult.toString());
+        StringBuilder culprits = new StringBuilder();
+        String delim = "";
+        for (Object userObject : build.getCulprits()) {
+            culprits.append(delim).append(userObject.toString());
+            delim = ",";
         }
+        staticValuesMap.put("PROJECT_URL", build.getProject().getUrl());
+        staticValuesMap.put("BUILD_RESULT", buildResult != null ? buildResult.toString() : "");
         staticValuesMap.put("BUILD_NUMBER", Integer.toString(build.getNumber()));
-        if (rawString.contains("$\\{CULPRITS\\}")) {
-            StringBuilder culprits = new StringBuilder();
-            String delim = "";
-            for (Object userObject : build.getCulprits()) {
-                culprits.append(delim).append(userObject.toString());
-                delim = ",";
-            }
-            staticValuesMap.put("CULPRITS", culprits.toString());
-        }
-        StrSubstitutor sub = new StrSubstitutor(staticValuesMap);
-        String result = sub.replace(rawString);
-
-        return result;
+        staticValuesMap.put("CULPRITS", culprits.toString());
+        return new StrSubstitutor(staticValuesMap).replace(rawString);
     }
 
     private String replaceEnvironmentVariables(final String rawString, final AbstractBuild build, BuildListener listener) {
         final PrintStream logger = listener.getLogger();
-        String result = rawString;
         try {
-            EnvVars environment = build.getProject().getEnvironment(build.getBuiltOn(), listener);
-            Map<String, String> envValuesMap = new HashMap<String, String>();
-            for (Map.Entry<String, String> envVarEntry : environment.entrySet()) {
-                String key = envVarEntry.getKey();
-                String value = envVarEntry.getValue();
-                envValuesMap.put(key, value);
-            }
-            StrSubstitutor sub = new StrSubstitutor(envValuesMap);
-            result = sub.replace(rawString);
+            return new StrSubstitutor(build.getProject().getEnvironment(build.getBuiltOn(), listener)).replace(rawString);
         } catch (IOException ioe) {
             logger.println("ERROR: Caught IOException while trying to replace environment variables: " + ioe.getMessage());
             ioe.printStackTrace(logger);
@@ -320,20 +302,10 @@ public class MqttNotifier extends Notifier {
             logger.println("ERROR: Caught InterruptedException while trying to replace environment variables: " + ie.getMessage());
             ie.printStackTrace(logger);
         }
-        return result;
+        return rawString;
     }
 
     private String replaceBuildVariables(final String rawString, final AbstractBuild build) {
-        Map<String, String> buildVarMap = build.getBuildVariables();
-        Map<String, String> buildValuesMap = new HashMap<String, String>();
-        for (Map.Entry<String, String> buildVarEntry : buildVarMap.entrySet()) {
-            String key = buildVarEntry.getKey();
-            String value = buildVarEntry.getValue();
-            buildValuesMap.put(key, value);
-        }
-        StrSubstitutor sub = new StrSubstitutor(buildValuesMap);
-        String result = sub.replace(rawString);
-        return result;
+        return new StrSubstitutor(build.getBuildVariables()).replace(rawString);
     }
-
 }
