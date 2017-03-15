@@ -86,18 +86,12 @@ public class MqttNotifier extends Notifier {
 
     @DataBoundConstructor
     public MqttNotifier(String brokerUrl, String topic, String message, String qos, boolean retainMessage, String credentialsId) {
-        this(brokerUrl, topic, message, qos, retainMessage, lookupSystemCredentials(credentialsId));
-    }
-
-    public MqttNotifier(String brokerUrl, String topic, String message, String qos, boolean retainMessage,
-                        StandardUsernamePasswordCredentials credentials) {
         this.brokerUrl = brokerUrl;
         this.topic = topic;
         this.message = message;
         this.qos = qos;
         this.retainMessage = retainMessage;
-        this.credentials = credentials;
-        this.credentialsId = credentials == null ? null : credentials.getId();
+        this.credentialsId = credentialsId;
     }
 
     public String getCredentialsId() {
@@ -153,9 +147,10 @@ public class MqttNotifier extends Notifier {
             final MqttDefaultFilePersistence dataStore = new MqttDefaultFilePersistence(tmpDir);
             final MqttClient mqtt = new MqttClient(getBrokerUrl(), CLIENT_ID, dataStore);
             MqttConnectOptions mqttConnectOptions = new MqttConnectOptions();
-            if (this.credentials != null) {
-                mqttConnectOptions.setUserName(this.credentials.getUsername());
-                mqttConnectOptions.setPassword(this.credentials.getPassword().getPlainText().toCharArray());
+            StandardUsernamePasswordCredentials credentials = MqttNotifier.lookupSystemCredentials(this.credentialsId);
+            if (credentials != null) {
+                mqttConnectOptions.setUserName(credentials.getUsername());
+                mqttConnectOptions.setPassword(credentials.getPassword().getPlainText().toCharArray());
             }
             mqtt.connect(mqttConnectOptions);
             mqtt.publish(
