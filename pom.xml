@@ -3,7 +3,7 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>2.11</version>
+        <version>2.37</version>
         <relativePath />
     </parent>
 
@@ -48,11 +48,13 @@
     </pluginRepositories>
 
     <properties>
-        <jenkins.version>1.651.3</jenkins.version>
-        <java.level>7</java.level>
-        <credentials.version>1.7.3</credentials.version>
-        <paho.version>1.0.2</paho.version>
-        <commons-lang.version>3.5</commons-lang.version>
+        <jenkins.version>2.121.1</jenkins.version>
+        <java.level>8</java.level>
+        <credentials.version>2.1.16</credentials.version>
+        <structs.version>1.10</structs.version>
+        <workflow-job.version>2.15</workflow-job.version>
+        <email-ext.version>2.62</email-ext.version>
+        <paho.version>1.2.0</paho.version>
     </properties>
 
     <dependencies>
@@ -67,9 +69,19 @@
             <version>${credentials.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
-            <version>${commons-lang.version}</version>
+            <groupId>org.jenkins-ci.plugins</groupId>
+            <artifactId>structs</artifactId>
+            <version>${structs.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jenkins-ci.plugins.workflow</groupId>
+            <artifactId>workflow-job</artifactId>
+            <version>${workflow-job.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jenkins-ci.plugins</groupId>
+            <artifactId>email-ext</artifactId>
+            <version>${email-ext.version}</version>
         </dependency>
     </dependencies>
 </project>
