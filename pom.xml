@@ -51,7 +51,7 @@
         <jenkins.version>1.651.3</jenkins.version>
         <java.level>7</java.level>
         <credentials.version>1.7.3</credentials.version>
-        <paho.version>1.0.2</paho.version>
+        <paho.version>1.2.1</paho.version>
         <commons-lang.version>3.5</commons-lang.version>
     </properties>
 
