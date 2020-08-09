@@ -54,7 +54,7 @@
         <structs.version>1.10</structs.version>
         <workflow-job.version>2.15</workflow-job.version>
         <email-ext.version>2.62</email-ext.version>
-        <paho.version>1.2.0</paho.version>
+        <paho.version>1.2.1</paho.version>
     </properties>
 
     <dependencies>
