@@ -217,6 +217,7 @@ public class MqttNotifier extends Notifier implements SimpleBuildStep {
                 this.isRetainMessage()
             );
             mqtt.disconnect();
+            mqtt.close(); // Release the resources
         } catch (final MqttException me) {
             logger.println("ERROR: Caught MqttException while configuring MQTT connection: " + me.getMessage());
             me.printStackTrace(logger);
@@ -267,6 +268,7 @@ public class MqttNotifier extends Notifier implements SimpleBuildStep {
 
                 mqtt.connect(mqttConnectOptions);
                 mqtt.disconnect();
+                mqtt.close() // Release the resource
                 return FormValidation.ok("Success");
             } catch (final MqttException me) {
                 return FormValidation.error(me, "Failed to connect");
