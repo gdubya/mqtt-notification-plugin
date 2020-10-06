@@ -1,7 +1,6 @@
 MQTT Notification plugin
 ====================
 
-[![Join the chat at https://gitter.im/jenkinsci/mqtt-notification-plugin](https://badges.gitter.im/jenkinsci/mqtt-notification-plugin.svg)](https://gitter.im/jenkinsci/mqtt-notification-plugin?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Jenkins Plugin](https://img.shields.io/jenkins/plugin/v/mqtt-notification-plugin.svg)](https://plugins.jenkins.io/mqtt-notification-plugin)
 [![GitHub release](https://img.shields.io/github/release/jenkinsci/mqtt-notification-plugin.svg?label=changelog)](https://github.com/jenkinsci/mqtt-notification-plugin/releases/latest)
 [![Jenkins Plugin Installs](https://img.shields.io/jenkins/plugin/i/mqtt-notification-plugin.svg?color=blue)](https://plugins.jenkins.io/mqtt-notification-plugin)
