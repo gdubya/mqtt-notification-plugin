@@ -15,6 +15,7 @@ a [MQTT](http://mqtt.org/) broker.
 Things" connectivity protocol. It was designed as an extremely
 lightweight publish/subscribe messaging transport.
 
+# Configuration
 The following details are configurable per Jenkins job:
 
 -   Broker hostname/port
@@ -37,3 +38,6 @@ used ([JENKINS-41839](https://issues.jenkins-ci.org/browse/JENKINS-41839)).
 The default topic when no value is specified is "jenkins/PROJECT\_URL".
 
 The default message when no value is specified is "BUILD\_RESULT".
+
+# License
+This Jenkins plugin is licensed under the [MIT License](./LICENSE.txt).
