@@ -12,7 +12,7 @@
     <version>1.8-SNAPSHOT</version>
     <packaging>hpi</packaging>
     <name>MQTT Notification Plugin</name>
-    <url>https://wiki.jenkins-ci.org/display/JENKINS/MQTT+Notification+Plugin</url>
+    <url>https://github.com/jenkinsci/mqtt-notification-plugin</url>
 
     <developers>
         <developer>
@@ -55,6 +55,7 @@
         <workflow-job.version>2.15</workflow-job.version>
         <email-ext.version>2.62</email-ext.version>
         <paho.version>1.2.1</paho.version>
+        <commons-lang.version>3.5</commons-lang.version>
     </properties>
 
     <dependencies>
