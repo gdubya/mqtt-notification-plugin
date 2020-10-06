@@ -198,10 +198,9 @@ public class MqttNotifier extends Notifier implements SimpleBuildStep {
             final TaskListener listener) throws InterruptedException, IOException {
 
         final PrintStream logger = listener.getLogger();
-        try {
-            final String tmpDir = System.getProperty("java.io.tmpdir");
-            final MqttDefaultFilePersistence dataStore = new MqttDefaultFilePersistence(tmpDir);
-            final MqttClient mqtt = new MqttClient(this.getBrokerUrl(), CLIENT_ID, dataStore);
+        final String tmpDir = System.getProperty("java.io.tmpdir");
+        final MqttDefaultFilePersistence dataStore = new MqttDefaultFilePersistence(tmpDir);
+        try (final MqttClient mqtt = new MqttClient(this.getBrokerUrl(), CLIENT_ID, dataStore)) {
             final MqttConnectOptions mqttConnectOptions = new MqttConnectOptions();
             final StandardUsernamePasswordCredentials credentials = MqttNotifier
                     .lookupSystemCredentials(this.credentialsId);
@@ -217,7 +216,6 @@ public class MqttNotifier extends Notifier implements SimpleBuildStep {
                 this.isRetainMessage()
             );
             mqtt.disconnect();
-            mqtt.close(); // Release the resources
         } catch (final MqttException me) {
             logger.println("ERROR: Caught MqttException while configuring MQTT connection: " + me.getMessage());
             me.printStackTrace(logger);
@@ -252,11 +250,9 @@ public class MqttNotifier extends Notifier implements SimpleBuildStep {
                 return FormValidation.error("Broker URL must not be empty");
             }
 
-            try {
-                final String tmpDir = System.getProperty("java.io.tmpdir");
-                final MqttDefaultFilePersistence dataStore = new MqttDefaultFilePersistence(tmpDir);
-                final MqttClient mqtt = new MqttClient(brokerUrl, CLIENT_ID, dataStore);
-
+            final String tmpDir = System.getProperty("java.io.tmpdir");
+            final MqttDefaultFilePersistence dataStore = new MqttDefaultFilePersistence(tmpDir);
+            try (final MqttClient mqtt = new MqttClient(brokerUrl, CLIENT_ID, dataStore)){
                 final MqttConnectOptions mqttConnectOptions = new MqttConnectOptions();
 
                 final StandardUsernamePasswordCredentials credentials = MqttNotifier.lookupSystemCredentials(credentialsId);
@@ -268,7 +264,6 @@ public class MqttNotifier extends Notifier implements SimpleBuildStep {
 
                 mqtt.connect(mqttConnectOptions);
                 mqtt.disconnect();
-                mqtt.close() // Release the resource
                 return FormValidation.ok("Success");
             } catch (final MqttException me) {
                 return FormValidation.error(me, "Failed to connect");
