@@ -1,17 +1,43 @@
 package jenkins.plugins.mqttnotification;
 
+import java.io.IOException;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
+
+import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import org.eclipse.paho.client.mqttv3.MqttException;
+import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence;
+import org.jenkinsci.Symbol;
+import org.kohsuke.stapler.AncestorInPath;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerRequest;
+
 import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardUsernameListBoxModel;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
+
+import hudson.EnvVars;
 import hudson.Extension;
+import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
-import hudson.model.BuildListener;
 import hudson.model.Item;
 import hudson.model.Result;
+import hudson.model.Run;
+import hudson.model.TaskListener;
+import hudson.model.User;
+import hudson.plugins.emailext.plugins.recipients.RecipientProviderUtilities;
+import hudson.plugins.emailext.plugins.recipients.RecipientProviderUtilities.IDebug;
 import hudson.security.ACL;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
@@ -20,32 +46,15 @@ import hudson.tasks.Publisher;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
+import jenkins.tasks.SimpleBuildStep;
 import net.sf.json.JSONObject;
-import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang3.text.StrSubstitutor;
-import org.eclipse.paho.client.mqttv3.MqttClient;
-import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
-import org.eclipse.paho.client.mqttv3.MqttException;
-import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence;
-import org.kohsuke.stapler.AncestorInPath;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerRequest;
-
-import javax.servlet.ServletException;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * A simple build result notifier that publishes the result via MQTT.
  *
  * @author Gareth Western
  */
-public class MqttNotifier extends Notifier {
+public class MqttNotifier extends Notifier implements SimpleBuildStep {
 
     private static final String CLIENT_ID = MqttNotifier.class.getSimpleName();
 
@@ -54,17 +63,17 @@ public class MqttNotifier extends Notifier {
     private static final String DEFAULT_TOPIC = "jenkins/$PROJECT_URL";
     private static final String DEFAULT_MESSAGE = "$BUILD_RESULT";
 
-    private final String brokerUrl;
+    private String brokerUrl;
 
-    private final String topic;
+    private String topic;
 
-    private final String message;
+    private String message;
 
-    private final String qos;
+    private String qos;
 
-    private final boolean retainMessage;
+    private boolean retainMessage;
 
-    private final String credentialsId;
+    private String credentialsId;
 
     private StandardUsernamePasswordCredentials credentials;
 
@@ -80,50 +89,86 @@ public class MqttNotifier extends Notifier {
         }
 
         public int getValue() {
-            return value;
+            return this.value;
         }
     }
 
     @DataBoundConstructor
-    public MqttNotifier(String brokerUrl, String topic, String message, String qos, boolean retainMessage, String credentialsId) {
-        this(brokerUrl, topic, message, qos, retainMessage, lookupSystemCredentials(credentialsId));
-    }
+    public MqttNotifier(
+            final String brokerUrl,
+            final String topic,
+            final String message,
+            final String qos,
+            final boolean retainMessage,
+            final String credentialsId) {
 
-    public MqttNotifier(String brokerUrl, String topic, String message, String qos, boolean retainMessage,
-                        StandardUsernamePasswordCredentials credentials) {
         this.brokerUrl = brokerUrl;
         this.topic = topic;
         this.message = message;
         this.qos = qos;
         this.retainMessage = retainMessage;
-        this.credentials = credentials;
-        this.credentialsId = credentials == null ? null : credentials.getId();
+        this.credentialsId = credentialsId;
     }
 
     public String getCredentialsId() {
-        return credentialsId;
+        return this.credentialsId;
+    }
+
+    @DataBoundSetter
+    public void setCredentialsId(final String credentialsId) {
+        this.credentialsId = credentialsId;
     }
 
     public String getBrokerUrl() {
-        return brokerUrl;
+        return this.brokerUrl;
+    }
+
+    @DataBoundSetter
+    public void setBrokerUrl(final String brokerUrl) {
+        this.brokerUrl = brokerUrl;
     }
 
     public String getTopic() {
-        return StringUtils.isEmpty(topic) ? DEFAULT_TOPIC : topic;
+        return isNullOrEmpty(this.topic) ? DEFAULT_TOPIC : this.topic;
+    }
+
+    @DataBoundSetter
+    public void setTopic(final String topic) {
+        this.topic = topic;
     }
 
     public String getMessage() {
-        return StringUtils.isEmpty(message) ? DEFAULT_MESSAGE : message;
+        return isNullOrEmpty(this.message) ? DEFAULT_MESSAGE : this.message;
     }
 
-    public int getQos() {
-        return Integer.parseInt(qos);
+    @DataBoundSetter
+    public void setMessage(final String message) {
+        this.message = message;
+    }
+
+    public String getQos() {
+        return this.qos;
+    }
+
+    private int getQualityOfServce() {
+        return this.qos == null ? Qos.AT_MOST_ONCE.value : Integer.parseInt(this.qos);
+    }
+
+    @DataBoundSetter
+    public void setQos(final String qos) {
+        this.qos = qos;
     }
 
     public boolean isRetainMessage() {
-        return retainMessage;
+        return this.retainMessage;
     }
 
+    @DataBoundSetter
+    public void setRetainMessage(final boolean retainMessage) {
+        this.retainMessage = retainMessage;
+    }
+
+    @Override
     public BuildStepMonitor getRequiredMonitorService() {
         return BuildStepMonitor.NONE;
     }
@@ -133,7 +178,7 @@ public class MqttNotifier extends Notifier {
         return true;
     }
 
-    static StandardUsernamePasswordCredentials lookupSystemCredentials(String credentialsId) {
+    static StandardUsernamePasswordCredentials lookupSystemCredentials(final String credentialsId) {
         return CredentialsMatchers.firstOrNull(
             CredentialsProvider.lookupCredentials(
                 StandardUsernamePasswordCredentials.class,
@@ -146,65 +191,75 @@ public class MqttNotifier extends Notifier {
     }
 
     @Override
-    public boolean perform(final AbstractBuild build, final Launcher launcher, final BuildListener listener) {
+    public void perform(
+            final Run<?, ?> run,
+            final FilePath workspace,
+            final Launcher launcher,
+            final TaskListener listener) throws InterruptedException, IOException {
+
         final PrintStream logger = listener.getLogger();
         try {
             final String tmpDir = System.getProperty("java.io.tmpdir");
             final MqttDefaultFilePersistence dataStore = new MqttDefaultFilePersistence(tmpDir);
-            final MqttClient mqtt = new MqttClient(getBrokerUrl(), CLIENT_ID, dataStore);
-            MqttConnectOptions mqttConnectOptions = new MqttConnectOptions();
-            if (this.credentials != null) {
-                mqttConnectOptions.setUserName(this.credentials.getUsername());
-                mqttConnectOptions.setPassword(this.credentials.getPassword().getPlainText().toCharArray());
+            final MqttClient mqtt = new MqttClient(this.getBrokerUrl(), CLIENT_ID, dataStore);
+            final MqttConnectOptions mqttConnectOptions = new MqttConnectOptions();
+            final StandardUsernamePasswordCredentials credentials = MqttNotifier
+                    .lookupSystemCredentials(this.credentialsId);
+            if (credentials != null) {
+                mqttConnectOptions.setUserName(credentials.getUsername());
+                mqttConnectOptions.setPassword(credentials.getPassword().getPlainText().toCharArray());
             }
             mqtt.connect(mqttConnectOptions);
             mqtt.publish(
-                replaceVariables(getTopic(), build, listener),
-                replaceVariables(getMessage(), build, listener).getBytes(StandardCharsets.UTF_8),
-                getQos(),
-                isRetainMessage()
+                this.replaceVariables(this.getTopic(), run, listener),
+                this.replaceVariables(this.getMessage(), run, listener).getBytes(StandardCharsets.UTF_8),
+                this.getQualityOfServce(),
+                this.isRetainMessage()
             );
             mqtt.disconnect();
+            mqtt.close(); // Release the resources
         } catch (final MqttException me) {
             logger.println("ERROR: Caught MqttException while configuring MQTT connection: " + me.getMessage());
             me.printStackTrace(logger);
         }
-        return true;
     }
 
+    @Symbol("mqttNotification")
     @Extension
     public static final class DescriptorImpl extends BuildStepDescriptor<Publisher> {
 
-        public FormValidation doCheckBrokerHost(@QueryParameter String value) {
+        public FormValidation doCheckBrokerHost(@QueryParameter final String value) {
             return FormValidation.validateRequired(value);
         }
 
-        public FormValidation doCheckBrokerPort(@QueryParameter String value) {
+        public FormValidation doCheckBrokerPort(@QueryParameter final String value) {
             return FormValidation.validatePositiveInteger(value);
         }
 
         public ListBoxModel doFillQosItems() {
-            ListBoxModel items = new ListBoxModel();
-            for (Qos qos : Qos.values()) {
+            final ListBoxModel items = new ListBoxModel();
+            for (final Qos qos : Qos.values()) {
                 items.add(qos.name(), String.valueOf(qos.getValue()));
             }
             return items;
         }
 
-        public FormValidation doTestConnection(@QueryParameter("brokerUrl") final String brokerUrl,
-                                               @QueryParameter("credentialsId") final String credentialsId)
-            throws IOException, ServletException {
+        public FormValidation doTestConnection(
+                @QueryParameter("brokerUrl") final String brokerUrl,
+                @QueryParameter("credentialsId") final String credentialsId) {
+
             if (brokerUrl == null || brokerUrl.trim().isEmpty()) {
                 return FormValidation.error("Broker URL must not be empty");
             }
+
             try {
                 final String tmpDir = System.getProperty("java.io.tmpdir");
                 final MqttDefaultFilePersistence dataStore = new MqttDefaultFilePersistence(tmpDir);
                 final MqttClient mqtt = new MqttClient(brokerUrl, CLIENT_ID, dataStore);
 
-                MqttConnectOptions mqttConnectOptions = new MqttConnectOptions();
+                final MqttConnectOptions mqttConnectOptions = new MqttConnectOptions();
 
-                StandardUsernamePasswordCredentials credentials = MqttNotifier.lookupSystemCredentials(credentialsId);
+                final StandardUsernamePasswordCredentials credentials = MqttNotifier.lookupSystemCredentials(credentialsId);
 
                 if (credentials != null) {
                     mqttConnectOptions.setUserName(credentials.getUsername());
@@ -213,13 +268,14 @@ public class MqttNotifier extends Notifier {
 
                 mqtt.connect(mqttConnectOptions);
                 mqtt.disconnect();
+                mqtt.close() // Release the resource
                 return FormValidation.ok("Success");
-            } catch (MqttException me) {
+            } catch (final MqttException me) {
                 return FormValidation.error(me, "Failed to connect");
             }
         }
 
-        public ListBoxModel doFillCredentialsIdItems(@AncestorInPath Item context) {
+        public ListBoxModel doFillCredentialsIdItems(@AncestorInPath final Item context) {
             return context != null && context.hasPermission(Item.CONFIGURE)
                 ? new StandardUsernameListBoxModel()
                 .withEmptySelection()
@@ -234,78 +290,102 @@ public class MqttNotifier extends Notifier {
                 : new ListBoxModel();
         }
 
-        public boolean isApplicable(Class<? extends AbstractProject> aClass) {
+        @Override
+        public boolean isApplicable(final Class<? extends AbstractProject> aClass) {
             return true;
         }
 
+        @Override
         public String getDisplayName() {
             return DISPLAY_NAME;
         }
 
         @Override
-        public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
-            save();
+        public boolean configure(final StaplerRequest req, final JSONObject formData) throws FormException {
+            this.save();
             return super.configure(req, formData);
         }
     }
 
     /**
      * Replace both static and environment variables, build parameters defined in the given rawString
-     * @param rawString The string containing variables to be replaced
-     * @param build The current build
-     * @param listener The current buildListener
+     *
+     * @param rawString
+     *            The string containing variables to be replaced
+     * @param run
+     *            The current run
+     * @param listener
+     *            The current buildListener
+     *
      * @return a new String with variables replaced
+     *
+     * @throws InterruptedException
+     * @throws IOException
      */
-    private String replaceVariables(final String rawString, final AbstractBuild build, BuildListener listener) {
-        String result = replaceStaticVariables(rawString, build);
-        result = replaceEnvironmentVariables(result, build, listener);
-        result = replaceBuildVariables(result, build);
-        return result;
-    }
+    private String replaceVariables(final String rawString, final Run<?, ?> run, final TaskListener listener)
+            throws IOException, InterruptedException {
 
-    /**
-     * Replace the static variables (defined by this plugin):
-     * <ul>
-     *     <li>BUILD_RESULT</li> The build result (e.g. SUCCESS)
-     *     <li>PROJECT_URL</li> The URL to the project
-     *     <li>CULPRITS</li> The culprits responsible for the build
-     *     <li>BUILD_NUMBER</li> The build number
-     * </ul>
-     * @param rawString The string containing variables to be replaced
-     * @param build The current build
-     * @return a new String with variables replaced
-     */
-    private String replaceStaticVariables(final String rawString, final AbstractBuild build) {
-        Map<String, String> staticValuesMap = new HashMap<>();
-        Result buildResult = build.getResult();
-        StringBuilder culprits = new StringBuilder();
-        String delim = "";
-        for (Object userObject : build.getCulprits()) {
-            culprits.append(delim).append(userObject.toString());
-            delim = ",";
+        final Result buildResult = run.getResult();
+        final EnvVars env = run.getEnvironment(listener);
+        if (run instanceof AbstractBuild) {
+            env.overrideAll(((AbstractBuild) run).getBuildVariables());
         }
-        staticValuesMap.put("PROJECT_URL", build.getProject().getUrl());
-        staticValuesMap.put("BUILD_RESULT", buildResult != null ? buildResult.toString() : "");
-        staticValuesMap.put("BUILD_NUMBER", Integer.toString(build.getNumber()));
-        staticValuesMap.put("CULPRITS", culprits.toString());
-        return new StrSubstitutor(staticValuesMap).replace(rawString);
-    }
 
-    private String replaceEnvironmentVariables(final String rawString, final AbstractBuild build, BuildListener listener) {
-        final PrintStream logger = listener.getLogger();
-        try {
-            return new StrSubstitutor(build.getProject().getEnvironment(build.getBuiltOn(), listener)).replace(rawString);
-        } catch (IOException ioe) {
-            logger.println("ERROR: Caught IOException while trying to replace environment variables: " + ioe.getMessage());
-            ioe.printStackTrace(logger);
-        } catch (InterruptedException ie) {
-            logger.println("ERROR: Caught InterruptedException while trying to replace environment variables: " + ie.getMessage());
-            ie.printStackTrace(logger);
+        final StringBuilder culprits = new StringBuilder();
+        final Iterator<User> iter = getCulprits(run).iterator();
+
+        while (iter.hasNext()) {
+            culprits.append(iter.next().toString());
+            if (iter.hasNext()) {
+                culprits.append(",");
+            }
         }
-        return rawString;
+
+        // if buildResult is null, we might encounter bug https://issues.jenkins-ci.org/browse/JENKINS-46325
+        env.put("BUILD_RESULT", buildResult != null ? buildResult.toString() : "");
+
+        env.put("PROJECT_URL", "job/" + env.get("JOB_NAME") + "/");
+        env.put("CULPRITS", culprits.toString());
+
+        return env.expand(rawString);
     }
 
-    private String replaceBuildVariables(final String rawString, final AbstractBuild build) {
-        return new StrSubstitutor(build.getBuildVariables()).replace(rawString);
+    // adapted from hudson.plugins.emailext.plugins.recipients.CulpritsRecipientProvider
+    private static Set<User> getCulprits(final Run<?, ?> run) {
+
+        if (run instanceof AbstractBuild) {
+            return ((AbstractBuild<?, ?>) run).getCulprits();
+        }
+
+        final IDebug debug = new RecipientProviderUtilities.IDebug() {
+            @Override
+            public void send(final String format, final Object... args) {
+            }
+        };
+
+        final List<Run<?, ?>> builds = new ArrayList<Run<?, ?>>();
+        Run<?, ?> build = run;
+        builds.add(build);
+        build = build.getPreviousCompletedBuild();
+
+        while (build != null) {
+            final Result buildResult = build.getResult();
+            if (buildResult != null) {
+                if (buildResult.isWorseThan(Result.SUCCESS)) {
+                    builds.add(build);
+                } else {
+                    break;
+                }
+            }
+            build = build.getPreviousCompletedBuild();
+        }
+
+        return RecipientProviderUtilities.getChangeSetAuthors(builds, debug);
+    }
+
+    // from Apache Commons Lang.... we code this little piece of code here
+    // to minimize our dependencies...
+    private static boolean isNullOrEmpty(final CharSequence cs) {
+        return cs == null || cs.length() == 0;
     }
 }

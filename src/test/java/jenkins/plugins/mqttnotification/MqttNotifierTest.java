@@ -30,7 +30,7 @@ public class MqttNotifierTest {
             "message1",
             "1",
             false,
-            (StandardUsernamePasswordCredentials) null
+            null
         );
     }
 
