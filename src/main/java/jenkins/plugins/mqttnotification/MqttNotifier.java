@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
@@ -55,8 +56,6 @@ import net.sf.json.JSONObject;
  * @author Gareth Western
  */
 public class MqttNotifier extends Notifier implements SimpleBuildStep {
-
-    private static final String CLIENT_ID = MqttNotifier.class.getSimpleName();
 
     private static final String DISPLAY_NAME = "MQTT Notification";
 
@@ -190,6 +189,10 @@ public class MqttNotifier extends Notifier implements SimpleBuildStep {
         );
     }
 
+    private static String getClientId() {
+        return MqttNotifier.class.getSimpleName() + UUID.randomUUID().toString();
+    }
+
     @Override
     public void perform(
             final Run<?, ?> run,
@@ -200,7 +203,7 @@ public class MqttNotifier extends Notifier implements SimpleBuildStep {
         final PrintStream logger = listener.getLogger();
         final String tmpDir = System.getProperty("java.io.tmpdir");
         final MqttDefaultFilePersistence dataStore = new MqttDefaultFilePersistence(tmpDir);
-        try (final MqttClient mqtt = new MqttClient(this.getBrokerUrl(), CLIENT_ID, dataStore)) {
+        try (final MqttClient mqtt = new MqttClient(this.getBrokerUrl(), getClientId(), dataStore)) {
             final MqttConnectOptions mqttConnectOptions = new MqttConnectOptions();
             final StandardUsernamePasswordCredentials credentials = MqttNotifier
                     .lookupSystemCredentials(this.credentialsId);
@@ -252,7 +255,7 @@ public class MqttNotifier extends Notifier implements SimpleBuildStep {
 
             final String tmpDir = System.getProperty("java.io.tmpdir");
             final MqttDefaultFilePersistence dataStore = new MqttDefaultFilePersistence(tmpDir);
-            try (final MqttClient mqtt = new MqttClient(brokerUrl, CLIENT_ID, dataStore)){
+            try (final MqttClient mqtt = new MqttClient(brokerUrl, getClientId(), dataStore)){
                 final MqttConnectOptions mqttConnectOptions = new MqttConnectOptions();
 
                 final StandardUsernamePasswordCredentials credentials = MqttNotifier.lookupSystemCredentials(credentialsId);
