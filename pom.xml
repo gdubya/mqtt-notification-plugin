@@ -60,7 +60,7 @@
         <java.level>8</java.level>
         <credentials.version>2.6.1.1</credentials.version>
         <structs.version>1.20</structs.version>
-        <workflow-job.version>2.40</workflow-job.version>
+        <workflow-job.version>1295.v395eb_7400005</workflow-job.version>
         <email-ext.version>2.77</email-ext.version>
         <paho.version>1.2.5</paho.version>
     </properties>
