@@ -3,7 +3,7 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.9</version>
+        <version>4.88</version>
         <relativePath />
     </parent>
 
@@ -14,16 +14,8 @@
     <name>MQTT Notification Plugin</name>
     <url>https://github.com/jenkinsci/mqtt-notification-plugin</url>
 
-    <developers>
-        <developer>
-            <id>gareth_western</id>
-            <name>Gareth Western</name>
-            <email>gareth@garethwestern.com</email>
-        </developer>
-    </developers>
-
     <scm>
-        <connection>scm:git:ssh://github.com/jenkinsci/mqtt-notification-plugin.git</connection>
+        <connection>scm:git:https://github.com/jenkinsci/mqtt-notification-plugin.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/jenkinsci/mqtt-notification-plugin.git</developerConnection>
         <url>https://github.com/jenkinsci/mqtt-notification-plugin</url>
         <tag>HEAD</tag>
@@ -36,6 +28,17 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.jenkins.tools.bom</groupId>
+                <artifactId>bom-${jenkins.baseline}.x</artifactId>
+                <version>4228.v0a_71308d905b_</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <repositories>
         <repository>
@@ -56,8 +59,9 @@
     </pluginRepositories>
 
     <properties>
-        <jenkins.version>2.222.4</jenkins.version>
-        <java.level>8</java.level>
+        <!-- https://www.jenkins.io/doc/developer/plugin-development/choosing-jenkins-baseline/ -->
+        <jenkins.baseline>2.462</jenkins.baseline>
+        <jenkins.version>${jenkins.baseline}.3</jenkins.version>
         <credentials.version>2.3.13</credentials.version>
         <structs.version>1.20</structs.version>
         <workflow-job.version>2.40</workflow-job.version>
@@ -74,17 +78,14 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>credentials</artifactId>
-            <version>${credentials.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>structs</artifactId>
-            <version>${structs.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-job</artifactId>
-            <version>${workflow-job.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
