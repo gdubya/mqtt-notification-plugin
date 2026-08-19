@@ -65,7 +65,7 @@
         <credentials.version>2.3.13</credentials.version>
         <structs.version>1.20</structs.version>
         <workflow-job.version>2.40</workflow-job.version>
-        <email-ext.version>2.77</email-ext.version>
+        <email-ext.version>2.96.1</email-ext.version>
         <paho.version>1.2.5</paho.version>
     </properties>
 
