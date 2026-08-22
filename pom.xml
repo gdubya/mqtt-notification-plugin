@@ -9,7 +9,7 @@
 
     <groupId>jenkins.plugins</groupId>
     <artifactId>mqtt-notification-plugin</artifactId>
-    <version>1.9.1-SNAPSHOT</version>
+    <version>${changelist}</version>
     <packaging>hpi</packaging>
     <name>MQTT Notification Plugin</name>
     <url>https://github.com/jenkinsci/mqtt-notification-plugin</url>
@@ -26,7 +26,7 @@
         <connection>scm:git:https://github.com/jenkinsci/mqtt-notification-plugin.git</connection>
         <developerConnection>scm:git:git@github.com:jenkinsci/mqtt-notification-plugin.git</developerConnection>
         <url>https://github.com/jenkinsci/mqtt-notification-plugin</url>
-        <tag>HEAD</tag>
+        <tag>${scmTag}</tag>
     </scm>
 
     <licenses>
@@ -67,6 +67,8 @@
     </pluginRepositories>
 
     <properties>
+        <changelist>999999-SNAPSHOT</changelist>
+        <gitHubRepo>jenkinsci/${project.artifactId}</gitHubRepo>
         <!-- https://www.jenkins.io/doc/developer/plugin-development/choosing-jenkins-baseline/ -->
         <jenkins.baseline>2.462</jenkins.baseline>
         <jenkins.version>${jenkins.baseline}.3</jenkins.version>
