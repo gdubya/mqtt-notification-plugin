@@ -2,6 +2,13 @@
 
 From v1.8.0 the changelog will be recorded in [Github Release Notes](https://github.com/jenkinsci/mqtt-notification-plugin/releases)
 
+#### 1.9.0 (2026-08-22)
+
+- Upgraded Jenkins core baseline to `2.462.3` and Java minimum version to Java 11/17.
+- Upgraded plugin parent POM to `4.88` and adopted Jenkins BOM `bom-2.462.x` dependency management.
+- Updated `email-ext` dependency to `2.96.1`.
+- Added standard CI pipeline `Jenkinsfile`.
+
 ## Previous releases
 
 #### 1.7 (2017-06-27)
