@@ -3,7 +3,7 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.88</version>
+        <version>6.2221.va_045130417c9</version>
         <relativePath />
     </parent>
 
@@ -41,7 +41,7 @@
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
                 <artifactId>bom-${jenkins.baseline}.x</artifactId>
-                <version>4228.v0a_71308d905b_</version>
+                <version>6916.v15ec97679743</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -52,10 +52,6 @@
         <repository>
             <id>repo.jenkins-ci.org</id>
             <url>https://repo.jenkins-ci.org/public/</url>
-        </repository>
-        <repository>
-            <id>paho-releases</id>
-            <url>https://repo.eclipse.org/content/repositories/paho-releases/</url>
         </repository>
     </repositories>
 
@@ -70,10 +66,12 @@
         <changelist>999999-SNAPSHOT</changelist>
         <gitHubRepo>jenkinsci/${project.artifactId}</gitHubRepo>
         <!-- https://www.jenkins.io/doc/developer/plugin-development/choosing-jenkins-baseline/ -->
-        <jenkins.baseline>2.462</jenkins.baseline>
-        <jenkins.version>${jenkins.baseline}.3</jenkins.version>
-        <email-ext.version>2.96.1</email-ext.version>
+        <jenkins.baseline>2.568</jenkins.baseline>
+        <jenkins.version>${jenkins.baseline}.2</jenkins.version>
+        <email-ext.version>2038.v7b_8817a_499d9</email-ext.version>
         <paho.version>1.2.5</paho.version>
+        <hpi.bundledArtifacts>org.eclipse.paho.client.mqttv3</hpi.bundledArtifacts>
+        <hpi.strictBundledArtifacts>true</hpi.strictBundledArtifacts>
     </properties>
 
     <dependencies>
