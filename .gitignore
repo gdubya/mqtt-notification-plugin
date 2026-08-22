@@ -1,3 +1,4 @@
 .idea/
 target/
+work/
 mqtt-notification-plugin.iml
