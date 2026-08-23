@@ -17,26 +17,82 @@ lightweight publish/subscribe messaging transport.
 # Configuration
 The following details are configurable per Jenkins job:
 
--   Broker hostname/port
--   Topic
--   Message
+-   **Broker URL** - The URL to the MQTT broker (e.g. `tcp://localhost:1883` or `ssl://broker.example.com:8883`).
+-   **Credentials** - Optional username/password credentials configured in Jenkins.
+-   **Topic** - Topic to publish notifications to (default: `jenkins/$PROJECT_URL`).
+-   **Message** - Message payload (default: `$BUILD_RESULT`).
+-   **Notify on build start?** - Optional toggle to send an MQTT notification when the build begins execution.
+-   **Start Topic** - Optional topic specifically for build start notifications (falls back to Topic).
+-   **Start Message** - Optional payload for build start notifications (default: `STARTED`).
+-   **Notify on build completion?** - Toggle to send notification upon build completion (default: true).
+-   **Quality of Service** - QoS level (0 - At most once, 1 - At least once, 2 - Exactly once).
+-   **Retain Message?** - Whether to set the retain flag on published messages.
 
-Both the topic and the message may also include certain dynamic
-variables. These include:
+Both topic and message strings support dynamic variable replacement:
 
--   PROJECT\_URL - The relative URL to the Jenkins project to which this
-    job belongs (e.g. "job/my-build").
--   BUILD\_RESULT - The result of the Job (e.g. SUCCESS, FAILURE,
-    ABORTED, etc.)
--   BUILD\_NUMBER - The build number
--   CULPRITS - Comma-separated list of build culprits
+-   `PROJECT_URL` - The relative URL to the Jenkins project (e.g. "job/my-build/").
+-   `BUILD_RESULT` - The result of the build (e.g. `SUCCESS`, `FAILURE`, `ABORTED`, etc.).
+-   `BUILD_NUMBER` - The build number.
+-   `BUILD_DISPLAY_NAME` - The display name of the build (e.g. `#1` or custom name).
+-   `CULPRITS` - Comma-separated list of build culprits.
+-   All standard Jenkins environment variables and build parameters.
 
-All other build variables and environment variables can also be
-used ([JENKINS-41839](https://issues.jenkins-ci.org/browse/JENKINS-41839)).
+# Pipeline Usage
 
-The default topic when no value is specified is "jenkins/PROJECT\_URL".
+The plugin provides the `mqttNotification` step for use in Jenkins Pipelines.
 
-The default message when no value is specified is "BUILD\_RESULT".
+### Declarative Pipeline Example
+
+```groovy
+pipeline {
+    agent any
+    stages {
+        stage('Build') {
+            steps {
+                echo 'Building...'
+            }
+        }
+    }
+    post {
+        always {
+            mqttNotification(
+                brokerUrl: 'tcp://localhost:1883',
+                topic: 'jenkins/builds/${JOB_NAME}',
+                message: '{ "job": "${JOB_NAME}", "build": "${BUILD_NUMBER}", "status": "${BUILD_RESULT}" }',
+                qos: '0',
+                retainMessage: false,
+                credentialsId: 'my-mqtt-credentials' // optional
+            )
+        }
+    }
+}
+```
+
+### Build Start Notification Example
+
+```groovy
+stage('Notify Start') {
+    steps {
+        mqttNotification(
+            brokerUrl: 'tcp://localhost:1883',
+            topic: 'jenkins/builds/${JOB_NAME}',
+            message: 'Build ${BUILD_DISPLAY_NAME} started'
+        )
+    }
+}
+```
+
+### Scripted Pipeline Example
+
+```groovy
+node {
+    stage('Build') {
+        mqttNotification brokerUrl: 'tcp://localhost:1883', topic: 'jenkins/start', message: 'Build started'
+        // ... build steps ...
+        mqttNotification brokerUrl: 'tcp://localhost:1883', topic: 'jenkins/finish', message: 'Build finished: ${BUILD_RESULT}'
+    }
+}
+```
 
 # License
-This Jenkins plugin is licensed under the [MIT License](./LICENSE.txt).
+This Jenkins plugin is licensed under the [MIT License](./LICENSE.txt).
