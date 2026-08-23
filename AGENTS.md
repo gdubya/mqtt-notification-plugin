@@ -11,3 +11,9 @@
   - `test`: Adding or refactoring tests
   - `chore`: Updating build tasks, dependencies, package configs, etc.
   - `ci`: CI/CD configuration changes (e.g., GitHub Actions, Jenkinsfile)
+
+## Development Environment
+- Use **WSL** (`Ubuntu-22.04` with zsh / SDKMAN) for development tooling (e.g., `mvn`, `java`).
+- Execute commands via WSL targeting the project directory:
+  `wsl -d Ubuntu-22.04 --cd /mnt/c/Users/garet/Projects/mqtt-notification-plugin -e zsh -ic 'source ~/.zshrc && <command>'`
+
