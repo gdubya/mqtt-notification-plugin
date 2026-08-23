@@ -41,6 +41,8 @@ Both topic and message strings support dynamic variable replacement:
 
 The plugin provides the `mqttNotification` step for use in Jenkins Pipelines.
 
+> **Tip**: In Groovy pipeline scripts, use single quotes (`'...'`) when using `${...}` variables so that Jenkins expands them dynamically rather than Groovy treating them as GStrings.
+
 ### Declarative Pipeline Example
 
 ```groovy

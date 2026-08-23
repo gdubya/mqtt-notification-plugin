@@ -11,6 +11,9 @@ import hudson.tasks.Shell;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
+import org.jenkinsci.plugins.workflow.job.WorkflowJob;
+import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jvnet.hudson.test.JenkinsRule;
 
 import java.io.IOException;
@@ -108,6 +111,53 @@ public class MqttNotifierTest {
         String startMsgReplaced = notifier.replaceVariables(notifier.getEffectiveStartMessage(), build, TaskListener.NULL);
         assertEquals("jenkins/start/test-start-job", startTopicReplaced);
         assertEquals("Build #1 started for test-start-job", startMsgReplaced);
+    }
+
+    @Test
+    public void testDeclarativePipelineExecution() throws Exception {
+        WorkflowJob job = j.createProject(WorkflowJob.class, "pipeline-declarative-test");
+        String pipelineScript =
+            "pipeline {\n" +
+            "    agent any\n" +
+            "    stages {\n" +
+            "        stage('Build') {\n" +
+            "            steps {\n" +
+            "                echo 'Building...'\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "    post {\n" +
+            "        always {\n" +
+            "            mqttNotification(\n" +
+            "                brokerUrl: 'tcp://localhost:1883',\n" +
+            "                topic: 'jenkins/builds/${JOB_NAME}',\n" +
+            "                message: '{ \"job\": \"${JOB_NAME}\", \"build\": \"${BUILD_NUMBER}\", \"status\": \"${BUILD_RESULT}\" }',\n" +
+            "                qos: '0',\n" +
+            "                retainMessage: false\n" +
+            "            )\n" +
+            "        }\n" +
+            "    }\n" +
+            "}";
+        job.setDefinition(new CpsFlowDefinition(pipelineScript, true));
+        WorkflowRun run = j.assertBuildStatusSuccess(job.scheduleBuild2(0));
+        assertNotNull(run);
+    }
+
+    @Test
+    public void testScriptedPipelineExecution() throws Exception {
+        WorkflowJob job = j.createProject(WorkflowJob.class, "pipeline-scripted-test");
+        String pipelineScript =
+            "node {\n" +
+            "    stage('Start') {\n" +
+            "        mqttNotification brokerUrl: 'tcp://localhost:1883', topic: 'jenkins/start/${JOB_NAME}', message: 'Build started'\n" +
+            "    }\n" +
+            "    stage('Finish') {\n" +
+            "        mqttNotification brokerUrl: 'tcp://localhost:1883', topic: 'jenkins/finish/${JOB_NAME}', message: 'Build finished'\n" +
+            "    }\n" +
+            "}";
+        job.setDefinition(new CpsFlowDefinition(pipelineScript, true));
+        WorkflowRun run = j.assertBuildStatusSuccess(job.scheduleBuild2(0));
+        assertNotNull(run);
     }
 
     public void setEnvironmentVariables() throws IOException {

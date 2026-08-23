@@ -230,6 +230,9 @@ public class MqttNotifier extends Notifier implements SimpleBuildStep {
     }
 
     static StandardUsernamePasswordCredentials lookupSystemCredentials(final String credentialsId) {
+        if (isNullOrEmpty(credentialsId)) {
+            return null;
+        }
         return CredentialsMatchers.firstOrNull(
             CredentialsProvider.lookupCredentials(
                 StandardUsernamePasswordCredentials.class,
