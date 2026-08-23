@@ -4,6 +4,7 @@ import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredenti
 import hudson.EnvVars;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
+import hudson.model.TaskListener;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Shell;
@@ -17,7 +18,6 @@ import java.io.IOException;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-@Ignore("TODO Figure out the best way to test the plugin.")
 public class MqttNotifierTest {
 
     @Rule
@@ -25,9 +25,9 @@ public class MqttNotifierTest {
 
     private MqttNotifier createSubject() {
         return new MqttNotifier(
-            "brokerUrl",
-            "topic1",
-            "message1",
+            "tcp://localhost:1883",
+            "jenkins/$JOB_NAME",
+            "$BUILD_RESULT",
             "1",
             false,
             null
@@ -43,20 +43,36 @@ public class MqttNotifierTest {
     @Test
     public void canGetAllFields() {
         MqttNotifier notifier = createSubject();
-        assertEquals("topic1", notifier.getTopic());
-        assertEquals("message1", notifier.getMessage());
-        assertEquals("brokerUrl", notifier.getBrokerUrl());
-        assertEquals(1, notifier.getQos());
+        assertEquals("jenkins/$JOB_NAME", notifier.getTopic());
+        assertEquals("$BUILD_RESULT", notifier.getMessage());
+        assertEquals("tcp://localhost:1883", notifier.getBrokerUrl());
+        assertEquals("1", notifier.getQos());
         assertEquals(BuildStepMonitor.NONE, notifier.getRequiredMonitorService());
     }
 
     @Test
-    public void testNotification() throws Exception{
-        FreeStyleProject project = j.createFreeStyleProject();
-        project.getBuildersList().add(new Shell("echo hello"));
+    public void testReplaceVariablesWithDefaultDisplayName() throws Exception {
+        MqttNotifier notifier = createSubject();
+        FreeStyleProject project = j.createFreeStyleProject("test-default-name");
         FreeStyleBuild build = project.scheduleBuild2(0).get();
-        project.getPublishersList().add(createSubject());
-        System.out.println(build.getDisplayName() + " completed");
+
+        String template = "{ \"job\": \"${JOB_NAME}\", \"name\": \"${BUILD_DISPLAY_NAME}\", \"state\": \"${BUILD_RESULT}\" }";
+        String replaced = notifier.replaceVariables(template, build, TaskListener.NULL);
+        System.out.println("Replaced default: " + replaced);
+        assertEquals("{ \"job\": \"test-default-name\", \"name\": \"#1\", \"state\": \"SUCCESS\" }", replaced);
+    }
+
+    @Test
+    public void testReplaceVariablesWithCustomDisplayName() throws Exception {
+        MqttNotifier notifier = createSubject();
+        FreeStyleProject project = j.createFreeStyleProject("test-custom-name");
+        FreeStyleBuild build = project.scheduleBuild2(0).get();
+        build.setDisplayName("CustomBuildName-1.0.0");
+
+        String template = "{ \"job\": \"${JOB_NAME}\", \"name\": \"${BUILD_DISPLAY_NAME}\", \"state\": \"${BUILD_RESULT}\" }";
+        String replaced = notifier.replaceVariables(template, build, TaskListener.NULL);
+        System.out.println("Replaced custom: " + replaced);
+        assertEquals("{ \"job\": \"test-custom-name\", \"name\": \"CustomBuildName-1.0.0\", \"state\": \"SUCCESS\" }", replaced);
     }
 
     public void setEnvironmentVariables() throws IOException {

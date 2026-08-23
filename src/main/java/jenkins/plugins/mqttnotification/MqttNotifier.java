@@ -320,7 +320,7 @@ public class MqttNotifier extends Notifier implements SimpleBuildStep {
      * @throws InterruptedException
      * @throws IOException
      */
-    private String replaceVariables(final String rawString, final Run<?, ?> run, final TaskListener listener)
+    String replaceVariables(final String rawString, final Run<?, ?> run, final TaskListener listener)
             throws IOException, InterruptedException {
 
         final Result buildResult = run.getResult();
