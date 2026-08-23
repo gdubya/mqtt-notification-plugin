@@ -17,3 +17,7 @@
 - Execute commands via WSL targeting the project directory:
   `wsl -d Ubuntu-22.04 --cd /mnt/c/Users/garet/Projects/mqtt-notification-plugin -e zsh -ic 'source ~/.zshrc && <command>'`
 
+## Branching & Pull Requests
+- Never commit or push directly to `main` or `master`.
+- Always make code and documentation changes on a dedicated branch and submit a Pull Request.
+
