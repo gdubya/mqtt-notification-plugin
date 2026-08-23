@@ -18,6 +18,22 @@
         <f:textarea />
     </f:entry>
 
+    <f:entry title="Notify on build start?" field="notifyOnStart">
+        <f:checkbox />
+    </f:entry>
+
+    <f:entry title="Start Topic" field="startTopic">
+        <f:textbox />
+    </f:entry>
+
+    <f:entry title="Start Message" field="startMessage">
+        <f:textarea />
+    </f:entry>
+
+    <f:entry title="Notify on build completion?" field="notifyOnComplete">
+        <f:checkbox default="true" />
+    </f:entry>
+
     <f:entry title="Quality of Service" field="qos">
         <f:select />
     </f:entry>

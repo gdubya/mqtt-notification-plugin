@@ -74,6 +74,14 @@ public class MqttNotifier extends Notifier implements SimpleBuildStep {
 
     private String credentialsId;
 
+    private boolean notifyOnStart = false;
+
+    private boolean notifyOnComplete = true;
+
+    private String startTopic;
+
+    private String startMessage;
+
     private StandardUsernamePasswordCredentials credentials;
 
     private enum Qos {
@@ -145,6 +153,50 @@ public class MqttNotifier extends Notifier implements SimpleBuildStep {
         this.message = message;
     }
 
+    public boolean isNotifyOnStart() {
+        return this.notifyOnStart;
+    }
+
+    @DataBoundSetter
+    public void setNotifyOnStart(final boolean notifyOnStart) {
+        this.notifyOnStart = notifyOnStart;
+    }
+
+    public boolean isNotifyOnComplete() {
+        return this.notifyOnComplete;
+    }
+
+    @DataBoundSetter
+    public void setNotifyOnComplete(final boolean notifyOnComplete) {
+        this.notifyOnComplete = notifyOnComplete;
+    }
+
+    public String getStartTopic() {
+        return this.startTopic;
+    }
+
+    @DataBoundSetter
+    public void setStartTopic(final String startTopic) {
+        this.startTopic = startTopic;
+    }
+
+    public String getEffectiveStartTopic() {
+        return isNullOrEmpty(this.startTopic) ? this.getTopic() : this.startTopic;
+    }
+
+    public String getStartMessage() {
+        return this.startMessage;
+    }
+
+    @DataBoundSetter
+    public void setStartMessage(final String startMessage) {
+        this.startMessage = startMessage;
+    }
+
+    public String getEffectiveStartMessage() {
+        return isNullOrEmpty(this.startMessage) ? "STARTED" : this.startMessage;
+    }
+
     public String getQos() {
         return this.qos;
     }
@@ -193,12 +245,11 @@ public class MqttNotifier extends Notifier implements SimpleBuildStep {
         return MqttNotifier.class.getSimpleName() + UUID.randomUUID().toString();
     }
 
-    @Override
-    public void perform(
+    public void sendNotification(
+            final String rawTopic,
+            final String rawMessage,
             final Run<?, ?> run,
-            final FilePath workspace,
-            final Launcher launcher,
-            final TaskListener listener) throws InterruptedException, IOException {
+            final TaskListener listener) {
 
         final PrintStream logger = listener.getLogger();
         final String tmpDir = System.getProperty("java.io.tmpdir");
@@ -213,15 +264,27 @@ public class MqttNotifier extends Notifier implements SimpleBuildStep {
             }
             mqtt.connect(mqttConnectOptions);
             mqtt.publish(
-                this.replaceVariables(this.getTopic(), run, listener),
-                this.replaceVariables(this.getMessage(), run, listener).getBytes(StandardCharsets.UTF_8),
+                this.replaceVariables(rawTopic, run, listener),
+                this.replaceVariables(rawMessage, run, listener).getBytes(StandardCharsets.UTF_8),
                 this.getQualityOfServce(),
                 this.isRetainMessage()
             );
             mqtt.disconnect();
-        } catch (final MqttException me) {
-            logger.println("ERROR: Caught MqttException while configuring MQTT connection: " + me.getMessage());
-            me.printStackTrace(logger);
+        } catch (final MqttException | IOException | InterruptedException e) {
+            logger.println("ERROR: Caught exception while publishing MQTT notification: " + e.getMessage());
+            e.printStackTrace(logger);
+        }
+    }
+
+    @Override
+    public void perform(
+            final Run<?, ?> run,
+            final FilePath workspace,
+            final Launcher launcher,
+            final TaskListener listener) throws InterruptedException, IOException {
+
+        if (this.isNotifyOnComplete()) {
+            this.sendNotification(this.getTopic(), this.getMessage(), run, listener);
         }
     }
 

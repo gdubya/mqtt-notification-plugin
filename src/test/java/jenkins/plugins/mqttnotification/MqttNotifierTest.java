@@ -48,6 +48,22 @@ public class MqttNotifierTest {
         assertEquals("tcp://localhost:1883", notifier.getBrokerUrl());
         assertEquals("1", notifier.getQos());
         assertEquals(BuildStepMonitor.NONE, notifier.getRequiredMonitorService());
+        assertEquals(false, notifier.isNotifyOnStart());
+        assertEquals(true, notifier.isNotifyOnComplete());
+        assertEquals("jenkins/$JOB_NAME", notifier.getEffectiveStartTopic());
+        assertEquals("STARTED", notifier.getEffectiveStartMessage());
+
+        notifier.setNotifyOnStart(true);
+        notifier.setNotifyOnComplete(false);
+        notifier.setStartTopic("jenkins/start/$JOB_NAME");
+        notifier.setStartMessage("Job $JOB_NAME started");
+
+        assertEquals(true, notifier.isNotifyOnStart());
+        assertEquals(false, notifier.isNotifyOnComplete());
+        assertEquals("jenkins/start/$JOB_NAME", notifier.getStartTopic());
+        assertEquals("jenkins/start/$JOB_NAME", notifier.getEffectiveStartTopic());
+        assertEquals("Job $JOB_NAME started", notifier.getStartMessage());
+        assertEquals("Job $JOB_NAME started", notifier.getEffectiveStartMessage());
     }
 
     @Test
@@ -75,11 +91,29 @@ public class MqttNotifierTest {
         assertEquals("{ \"job\": \"test-custom-name\", \"name\": \"CustomBuildName-1.0.0\", \"state\": \"SUCCESS\" }", replaced);
     }
 
+    @Test
+    public void testBuildStartNotificationExecution() throws Exception {
+        FreeStyleProject project = j.createFreeStyleProject("test-start-job");
+        MqttNotifier notifier = createSubject();
+        notifier.setNotifyOnStart(true);
+        notifier.setNotifyOnComplete(true);
+        notifier.setStartTopic("jenkins/start/$JOB_NAME");
+        notifier.setStartMessage("Build #${BUILD_NUMBER} started for ${JOB_NAME}");
+        project.getPublishersList().add(notifier);
+
+        FreeStyleBuild build = project.scheduleBuild2(0).get();
+        assertEquals(hudson.model.Result.SUCCESS, build.getResult());
+
+        String startTopicReplaced = notifier.replaceVariables(notifier.getEffectiveStartTopic(), build, TaskListener.NULL);
+        String startMsgReplaced = notifier.replaceVariables(notifier.getEffectiveStartMessage(), build, TaskListener.NULL);
+        assertEquals("jenkins/start/test-start-job", startTopicReplaced);
+        assertEquals("Build #1 started for test-start-job", startMsgReplaced);
+    }
+
     public void setEnvironmentVariables() throws IOException {
         EnvironmentVariablesNodeProperty prop = new EnvironmentVariablesNodeProperty();
         EnvVars envVars = prop.getEnvVars();
         envVars.put("sampleEnvVarKey", "sampleEnvVarValue");
         j.jenkins.getGlobalNodeProperties().add(prop);
     }
-
 }
